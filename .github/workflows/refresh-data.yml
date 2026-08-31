@@ -7,15 +7,24 @@ on:
     - cron: "17 */8 * * *"
       timezone: "Asia/Manila"
 
+
 permissions:
-  id-token: write
   contents: read
+  id-token: write
+  pages: write
+
 
 concurrency:
   group: beautiful-game-data-pipeline
   cancel-in-progress: false
 
+
 jobs:
+
+  # ==========================================================
+  # DATA PIPELINE + DBT DOCS BUILD
+  # ==========================================================
+
   refresh-data:
     name: Run football data pipeline
     runs-on: ubuntu-latest
@@ -28,8 +37,18 @@ jobs:
       FOOTBALL_DATA_BASE_URL: https://api.football-data.org/v4
 
     steps:
+
+      # ------------------------------------------------------
+      # Repository
+      # ------------------------------------------------------
+
       - name: Check out repository
         uses: actions/checkout@v4
+
+
+      # ------------------------------------------------------
+      # Python
+      # ------------------------------------------------------
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -37,28 +56,50 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
+
+      # ------------------------------------------------------
+      # AWS authentication
+      # ------------------------------------------------------
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6.2.3
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
+
       - name: Verify AWS identity
         run: |
           aws sts get-caller-identity
+
+
+      # ------------------------------------------------------
+      # Dependencies
+      # ------------------------------------------------------
 
       - name: Install project dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
+
       - name: Verify dbt installation
         run: |
           dbt --version
 
+
+      # ------------------------------------------------------
+      # Beautiful Game Analytics pipeline
+      # ------------------------------------------------------
+
       - name: Run Beautiful Game Analytics pipeline
         run: |
           python -m src.pipeline
+
+
+      # ------------------------------------------------------
+      # Publish analytical warehouse
+      # ------------------------------------------------------
 
       - name: Upload DuckDB warehouse to S3
         run: |
@@ -66,10 +107,58 @@ jobs:
             data/beautiful_game_analytics.duckdb \
             s3://${{ vars.S3_BUCKET }}/warehouse/beautiful_game_analytics.duckdb
 
+
       - name: Verify warehouse upload
         run: |
           aws s3 ls \
             s3://${{ vars.S3_BUCKET }}/warehouse/
+
+
+      # ======================================================
+      # DBT DOCUMENTATION
+      # ======================================================
+
+      - name: Generate dbt documentation
+        run: |
+          dbt docs generate \
+            --project-dir dbt \
+            --profiles-dir dbt
+
+
+      - name: Prepare dbt documentation site
+        run: |
+          mkdir -p dbt-docs-site
+
+          cp dbt/target/index.html \
+            dbt-docs-site/index.html
+
+          cp dbt/target/manifest.json \
+            dbt-docs-site/manifest.json
+
+          cp dbt/target/catalog.json \
+            dbt-docs-site/catalog.json
+
+          echo "Prepared dbt Docs site:"
+          ls -lh dbt-docs-site/
+
+
+      # ------------------------------------------------------
+      # GitHub Pages artifact
+      # ------------------------------------------------------
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+
+      - name: Upload dbt Docs Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dbt-docs-site
+
+
+      # ------------------------------------------------------
+      # Debug / inspection
+      # ------------------------------------------------------
 
       - name: Show generated data
         if: always()
@@ -85,6 +174,15 @@ jobs:
           echo "Warehouse:"
           ls -lh data/*.duckdb 2>/dev/null || true
 
+          echo ""
+          echo "dbt documentation:"
+          ls -lh dbt-docs-site/ 2>/dev/null || true
+
+
+      # ------------------------------------------------------
+      # Pipeline artifact
+      # ------------------------------------------------------
+
       - name: Upload pipeline output for inspection
         if: always()
         uses: actions/upload-artifact@v4
@@ -96,3 +194,31 @@ jobs:
             data/*.duckdb
           retention-days: 7
           if-no-files-found: warn
+
+
+  # ==========================================================
+  # GITHUB PAGES DEPLOYMENT
+  # ==========================================================
+
+  deploy-dbt-docs:
+    name: Deploy dbt Docs
+
+    needs:
+      - refresh-data
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+
+      - name: Deploy dbt Docs to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
