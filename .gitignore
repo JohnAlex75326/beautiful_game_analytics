@@ -44,6 +44,9 @@ env/
 
 data/raw/
 data/processed/
+data/.warehouse_etag
+# Temporary S3 download file
+data/*.download.duckdb
 
 
 # --------------------------------------------------

@@ -13,10 +13,18 @@ from src.warehouse.queries import (
     get_data_health_overview,
     get_match_status_summary,
     get_model_row_counts,
-    get_reconciliation_detail,
     get_pipeline_runs,
+    get_reconciliation_detail,
 )
 
+from src.warehouse.s3_sync import (
+    get_warehouse_sync_status,
+)
+
+
+# --------------------------------------------------
+# Page configuration
+# --------------------------------------------------
 
 st.set_page_config(
     page_title="Data Health | Beautiful Game Analytics",
@@ -24,6 +32,10 @@ st.set_page_config(
     layout="wide",
 )
 
+
+# --------------------------------------------------
+# Shared branding
+# --------------------------------------------------
 
 apply_branding()
 render_sidebar()
@@ -35,6 +47,14 @@ render_sidebar()
 
 @st.cache_data(ttl=300)
 def load_health_data():
+    """
+    Load the analytical datasets required by the
+    Data Health page.
+
+    All warehouse queries pass through queries.py,
+    which first checks whether the local DuckDB cache
+    should be refreshed from Amazon S3.
+    """
 
     return (
         get_data_health_overview(),
@@ -54,6 +74,12 @@ def load_health_data():
 ) = load_health_data()
 
 
+# The queries above already trigger the warehouse
+# synchronization check. We inspect the resulting
+# local/S3 state after that process has completed.
+warehouse_sync = get_warehouse_sync_status()
+
+
 health_row = health.iloc[0]
 
 
@@ -66,6 +92,100 @@ page_header(
     "Warehouse freshness, model coverage and "
     "source-reconciliation observability.",
 )
+
+
+# --------------------------------------------------
+# Cloud warehouse
+# --------------------------------------------------
+
+st.markdown("### Cloud Warehouse")
+
+
+cloud1, cloud2, cloud3 = st.columns(3)
+
+
+# Storage mode
+storage_mode = (
+    "Amazon S3"
+    if warehouse_sync["s3_enabled"]
+    else "Local"
+)
+
+
+cloud1.metric(
+    "Storage",
+    storage_mode,
+)
+
+
+# Warehouse cache status
+if not warehouse_sync["s3_enabled"]:
+
+    cache_status = "Local Only"
+
+elif warehouse_sync["is_current"]:
+
+    cache_status = "Current"
+
+else:
+
+    cache_status = "Update Available"
+
+
+cloud2.metric(
+    "Warehouse Cache",
+    cache_status,
+)
+
+
+# Latest S3 publication time
+remote_last_modified = warehouse_sync[
+    "remote_last_modified"
+]
+
+
+if remote_last_modified:
+
+    remote_modified = pd.to_datetime(
+        remote_last_modified,
+        utc=True,
+    )
+
+    cloud3.metric(
+        "S3 Published",
+        remote_modified.strftime(
+            "%d %b • %H:%M UTC"
+        ),
+    )
+
+else:
+
+    cloud3.metric(
+        "S3 Published",
+        "N/A",
+    )
+
+
+# Warehouse state message
+if warehouse_sync["is_current"]:
+
+    st.success(
+        "The local analytical warehouse matches "
+        "the latest version published to Amazon S3."
+    )
+
+elif warehouse_sync["s3_enabled"]:
+
+    st.warning(
+        "A newer S3 warehouse version is available."
+    )
+
+else:
+
+    st.info(
+        "S3 synchronization is not configured. "
+        "Using the local development warehouse."
+    )
 
 
 # --------------------------------------------------
@@ -164,7 +284,7 @@ else:
 
 
 # --------------------------------------------------
-# Source snapshot
+# Source freshness
 # --------------------------------------------------
 
 st.markdown("### Source Freshness")
@@ -266,7 +386,7 @@ st.plotly_chart(
 
 
 # --------------------------------------------------
-# Reconciliation
+# Standings reconciliation
 # --------------------------------------------------
 
 st.markdown("### Standings Reconciliation")
@@ -370,12 +490,10 @@ st.dataframe(
             "Layer",
             width="medium",
         ),
-
         "Dataset": st.column_config.TextColumn(
             "Dataset",
             width="large",
         ),
-
         "Rows": st.column_config.NumberColumn(
             "Rows",
             format="%d",
@@ -385,7 +503,7 @@ st.dataframe(
 
 
 # --------------------------------------------------
-# Architecture
+# Pipeline architecture
 # --------------------------------------------------
 
 st.markdown("### Pipeline Architecture")
@@ -417,7 +535,13 @@ dbt
 Staging Intermediate Marts
                      │
                      ▼
-                  Streamlit
+                 Amazon S3
+                     │
+                     ▼
+             Local DuckDB Cache
+                     │
+                     ▼
+                 Streamlit
     """,
     language=None,
 )
@@ -440,27 +564,33 @@ else:
 
     latest_run = pipeline_runs.iloc[0]
 
+
     run_col1, run_col2, run_col3, run_col4 = st.columns(4)
+
 
     run_col1.metric(
         "Latest Run",
         latest_run["status"],
     )
 
+
     run_col2.metric(
         "Stage",
         latest_run["current_stage"],
     )
+
 
     run_col3.metric(
         "Duration",
         f"{latest_run['duration_seconds']:.1f}s",
     )
 
+
     latest_started = pd.to_datetime(
         latest_run["started_at"],
         utc=True,
     )
+
 
     run_col4.metric(
         "Started",
@@ -484,6 +614,10 @@ else:
             f"{latest_run['failed_stage']}."
         )
 
+
+    # --------------------------------------------------
+    # Recent pipeline history
+    # --------------------------------------------------
 
     st.markdown("#### Recent Pipeline Runs")
 
@@ -529,5 +663,10 @@ else:
         use_container_width=True,
         hide_index=True,
     )
+
+
+# --------------------------------------------------
+# Footer
+# --------------------------------------------------
 
 render_footer()

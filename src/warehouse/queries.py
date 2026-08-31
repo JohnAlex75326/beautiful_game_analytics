@@ -4,6 +4,7 @@ import duckdb
 import pandas as pd
 
 from src.config import DUCKDB_PATH
+from src.warehouse.s3_sync import ensure_latest_warehouse
 
 
 def query_dataframe(query: str) -> pd.DataFrame:
@@ -11,6 +12,9 @@ def query_dataframe(query: str) -> pd.DataFrame:
     Execute a read-only analytical query against
     the Beautiful Game Analytics DuckDB warehouse.
     """
+
+    # Check whether S3 has a newer warehouse before querying.
+    ensure_latest_warehouse()
 
     connection = duckdb.connect(
         str(DUCKDB_PATH),
@@ -22,7 +26,6 @@ def query_dataframe(query: str) -> pd.DataFrame:
 
     finally:
         connection.close()
-
 
 def get_current_standings() -> pd.DataFrame:
     """
@@ -236,28 +239,6 @@ def get_match_explorer() -> pd.DataFrame:
             matchday ASC
         """
     )
-
-def get_match_status_summary() -> pd.DataFrame:
-    """
-    Return current match-feed status counts.
-    """
-
-    return query_dataframe(
-        """
-        SELECT
-            status,
-            COUNT(*) AS match_count
-
-        FROM main.fact_match
-
-        GROUP BY
-            status
-
-        ORDER BY
-            match_count DESC
-        """
-    )
-
 
 def get_data_health_overview() -> pd.DataFrame:
     """
