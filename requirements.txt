@@ -1,0 +1,10 @@
+requests
+python-dotenv
+pandas
+pyarrow
+duckdb==1.5.5
+streamlit
+plotly
+
+dbt-core==1.12.3
+dbt-duckdb==1.11.0

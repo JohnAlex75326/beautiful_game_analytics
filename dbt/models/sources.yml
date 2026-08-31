@@ -1,0 +1,26 @@
+version: 2
+
+
+sources:
+
+  - name: football_warehouse
+
+    description: >
+      Physical Beautiful Game Analytics warehouse tables
+      produced by the Python ingestion and transformation pipeline.
+
+    schema: main
+
+    tables:
+
+      - name: dim_team
+        description: >
+          Current team dimension loaded from football-data.org.
+
+      - name: fact_match
+        description: >
+          Current La Liga season fixture and result records.
+
+      - name: fact_standing_snapshot
+        description: >
+          Historical standings snapshots preserved by ingestion date.

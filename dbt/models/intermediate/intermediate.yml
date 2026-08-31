@@ -1,0 +1,91 @@
+version: 2
+
+models:
+
+  - name: int_team_match_results
+
+    description: >
+      Team-centric match results with one row per team
+      per completed match.
+
+    columns:
+
+      - name: team_match_key
+        description: >
+          Unique combination of match and participating team.
+
+        data_tests:
+          - not_null
+          - unique
+
+      - name: match_id
+        data_tests:
+          - not_null
+
+      - name: team_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_teams')
+                field: team_id
+
+      - name: opponent_team_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_teams')
+                field: team_id
+
+      - name: venue
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - HOME
+                  - AWAY
+
+      - name: team_result
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - W
+                  - D
+                  - L
+
+      - name: points_earned
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - 0
+                  - 1
+                  - 3
+
+  - name: int_standings_reconciliation
+
+    description: >
+      Compares official standings snapshots against
+      performance reconstructed from matches currently
+      marked FINISHED by the source API.
+
+    columns:
+
+      - name: team_id
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('stg_teams')
+                field: team_id
+
+      - name: snapshot_date
+        data_tests:
+          - not_null
+
+      - name: is_reconciled
+        data_tests:
+          - not_null

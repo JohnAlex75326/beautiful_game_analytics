@@ -1,0 +1,11 @@
+beautiful_game_analytics:
+
+  target: dev
+
+  outputs:
+
+    dev:
+      type: duckdb
+      path: data/beautiful_game_analytics.duckdb
+      schema: analytics
+      threads: 4

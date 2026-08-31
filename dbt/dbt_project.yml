@@ -1,0 +1,23 @@
+name: beautiful_game_analytics
+version: "1.0.0"
+
+profile: beautiful_game_analytics
+
+model-paths:
+  - models
+
+clean-targets:
+  - target
+  - dbt_packages
+
+models:
+  beautiful_game_analytics:
+
+    staging:
+      +materialized: view
+
+    intermediate:
+      +materialized: view
+
+    marts:
+      +materialized: table

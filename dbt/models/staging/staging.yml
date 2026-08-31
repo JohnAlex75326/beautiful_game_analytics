@@ -1,0 +1,99 @@
+version: 2
+
+
+models:
+
+  - name: stg_teams
+
+    description: >
+      Standardized football team records used throughout
+      Beautiful Game Analytics.
+
+    columns:
+
+      - name: team_id
+        description: >
+          Unique football-data.org team identifier.
+
+        data_tests:
+          - not_null
+          - unique
+
+      - name: team_name
+        data_tests:
+          - not_null
+
+      - name: competition_code
+        data_tests:
+          - not_null
+
+
+  - name: stg_matches
+
+    description: >
+      Standardized La Liga fixture and match result records.
+
+    columns:
+
+      - name: match_id
+        description: >
+          Unique football-data.org match identifier.
+
+        data_tests:
+          - not_null
+          - unique
+
+      - name: home_team_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_teams')
+                field: team_id
+
+      - name: away_team_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_teams')
+                field: team_id
+
+      - name: status
+        data_tests:
+          - not_null
+
+      - name: competition_code
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - PD
+
+
+  - name: stg_standings
+
+    description: >
+      Historical La Liga standings snapshots.
+
+    columns:
+
+      - name: team_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_teams')
+                field: team_id
+
+      - name: position
+        data_tests:
+          - not_null
+
+      - name: snapshot_date
+        data_tests:
+          - not_null
+
+      - name: points
+        data_tests:
+          - not_null

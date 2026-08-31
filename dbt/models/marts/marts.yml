@@ -1,0 +1,123 @@
+version: 2
+
+models:
+
+  - name: mart_current_standings
+
+    description: >
+      Business-ready current league standings enriched
+      with team metadata and source reconciliation status.
+
+    columns:
+
+      - name: standings_key
+        description: >
+          Unique competition, season, team and snapshot key.
+
+        data_tests:
+          - not_null
+          - unique
+
+      - name: team_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_teams')
+                field: team_id
+
+      - name: position
+        data_tests:
+          - not_null
+
+      - name: points
+        data_tests:
+          - not_null
+
+      - name: snapshot_date
+        data_tests:
+          - not_null
+
+      - name: is_reconciled
+        data_tests:
+          - not_null
+
+  - name: mart_team_performance
+
+    description: >
+      Team-level performance derived exclusively from
+      matches currently marked FINISHED by the source API.
+
+    columns:
+
+      - name: team_performance_key
+        data_tests:
+          - not_null
+          - unique
+
+      - name: team_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_teams')
+                field: team_id
+
+      - name: played
+        data_tests:
+          - not_null
+
+      - name: points
+        data_tests:
+          - not_null
+
+      - name: points_per_game
+        data_tests:
+          - not_null
+
+  - name: mart_match_explorer
+
+    description: >
+      Business-ready fixture and result dataset used by
+      the Beautiful Game Analytics Match Explorer.
+
+    columns:
+
+      - name: match_id
+        data_tests:
+          - not_null
+          - unique
+
+      - name: matchday
+        data_tests:
+          - not_null
+
+      - name: home_team_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_teams')
+                field: team_id
+
+      - name: away_team_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_teams')
+                field: team_id
+
+      - name: status
+        data_tests:
+          - not_null
+
+      - name: match_state
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - Finished
+                  - Live
+                  - Upcoming
+                  - Other
