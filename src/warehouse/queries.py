@@ -29,7 +29,8 @@ def query_dataframe(query: str) -> pd.DataFrame:
 
 def get_current_standings() -> pd.DataFrame:
     """
-    Return the current official league table.
+    Return the current official league table,
+    including approved club artwork metadata.
     """
 
     return query_dataframe(
@@ -40,6 +41,7 @@ def get_current_standings() -> pd.DataFrame:
             team_name,
             short_name,
             tla,
+            sportsdb_badge_url,
             played,
             won,
             drawn,
@@ -51,7 +53,9 @@ def get_current_standings() -> pd.DataFrame:
             is_reconciled,
             snapshot_date,
             snapshot_matchday
+
         FROM analytics.mart_current_standings
+
         ORDER BY
             position,
             short_name
@@ -142,7 +146,8 @@ def get_recent_matches(
     limit: int = 8,
 ) -> pd.DataFrame:
     """
-    Return the latest completed fixtures.
+    Return the latest completed fixtures,
+    including approved club artwork.
     """
 
     return query_dataframe(
@@ -150,10 +155,16 @@ def get_recent_matches(
         SELECT
             m.matchday,
             m.utc_date,
+
             h.short_name AS home_team,
+            h.sportsdb_badge_url AS home_badge_url,
+
             a.short_name AS away_team,
+            a.sportsdb_badge_url AS away_badge_url,
+
             m.home_score,
             m.away_score
+
         FROM main.fact_match m
 
         INNER JOIN main.dim_team h
@@ -175,7 +186,8 @@ def get_upcoming_matches(
     limit: int = 8,
 ) -> pd.DataFrame:
     """
-    Return the next scheduled fixtures.
+    Return the next scheduled fixtures,
+    including approved club artwork.
     """
 
     return query_dataframe(
@@ -183,9 +195,15 @@ def get_upcoming_matches(
         SELECT
             m.matchday,
             m.utc_date,
+
             h.short_name AS home_team,
+            h.sportsdb_badge_url AS home_badge_url,
+
             a.short_name AS away_team,
+            a.sportsdb_badge_url AS away_badge_url,
+
             m.status
+
         FROM main.fact_match m
 
         INNER JOIN main.dim_team h
@@ -205,6 +223,7 @@ def get_upcoming_matches(
         """
     )
 
+
 def get_match_explorer() -> pd.DataFrame:
     """
     Return the business-ready fixture and result dataset.
@@ -222,10 +241,12 @@ def get_match_explorer() -> pd.DataFrame:
             home_team_id,
             home_team,
             home_tla,
+            home_badge_url,
 
             away_team_id,
             away_team,
             away_tla,
+            away_badge_url,
 
             home_score,
             away_score,

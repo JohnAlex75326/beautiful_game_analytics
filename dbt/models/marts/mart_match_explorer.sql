@@ -25,15 +25,19 @@ final as (
         m.utc_date,
         m.status,
 
+        -- Home team
         m.home_team_id,
         home_team.team_name as home_team_name,
         home_team.short_name as home_team,
         home_team.tla as home_tla,
+        home_team.sportsdb_badge_url as home_badge_url,
 
+        -- Away team
         m.away_team_id,
         away_team.team_name as away_team_name,
         away_team.short_name as away_team,
         away_team.tla as away_tla,
+        away_team.sportsdb_badge_url as away_badge_url,
 
         m.home_score,
         m.away_score,

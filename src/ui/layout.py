@@ -147,5 +147,11 @@ def render_footer() -> None:
 
     st.caption(
         "Football data provided by the Football-Data.org API. "
-        "Beautiful Game Analytics is an independent portfolio project."
+        "Club artwork metadata provided by TheSportsDB. "
+        "Club names, crests and trademarks are the property "
+        "of their respective rights holders and are displayed "
+        "for identification purposes only. "
+        "Beautiful Game Analytics is an independent portfolio "
+        "project and is not affiliated with or endorsed by "
+        "La Liga or any club."
     )

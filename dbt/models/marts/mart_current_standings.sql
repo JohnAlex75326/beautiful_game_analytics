@@ -50,6 +50,9 @@ final as (
         t.short_name,
         t.tla,
 
+        -- Club artwork reference
+        t.sportsdb_badge_url,
+
         s.position,
         s.played,
         s.won,
