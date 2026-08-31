@@ -17,7 +17,18 @@ renamed as (
         venue_name,
         founded,
         club_colors,
+
+        -- football-data.org source metadata
         crest_url,
+
+        -- manually reviewed seasonal artwork reference
+        sportsdb_team_id,
+        sportsdb_team_name,
+        sportsdb_badge_url,
+        sportsdb_source,
+        sportsdb_resolution_method,
+        sportsdb_fetched_at,
+
         competition_code,
         loaded_at
 

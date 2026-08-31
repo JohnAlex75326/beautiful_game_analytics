@@ -1,0 +1,209 @@
+{
+  "competition_code": "PD",
+  "source_snapshot_date": "2026-08-31",
+  "refreshed_at": "2026-08-31T18:12:10.810821+00:00",
+  "team_count": 20,
+  "badge_count": 20,
+  "teams": [
+    {
+      "football_data_team_id": 77,
+      "football_data_team_name": "Athletic Club",
+      "sportsdb_team_id": "133727",
+      "sportsdb_team_name": "Athletic Bilbao",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/68w7fe1639408210.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 78,
+      "football_data_team_name": "Club Atlético de Madrid",
+      "sportsdb_team_id": "133729",
+      "sportsdb_team_name": "Atlético Madrid",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/0ulh3q1719984315.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 79,
+      "football_data_team_name": "CA Osasuna",
+      "sportsdb_team_id": "133730",
+      "sportsdb_team_name": "Osasuna",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/rvspvt1473502960.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 80,
+      "football_data_team_name": "RCD Espanyol de Barcelona",
+      "sportsdb_team_id": "133734",
+      "sportsdb_team_name": "Espanyol",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/867nzz1681703222.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 81,
+      "football_data_team_name": "FC Barcelona",
+      "sportsdb_team_id": "133739",
+      "sportsdb_team_name": "Barcelona",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/wq9sir1639406443.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 82,
+      "football_data_team_name": "Getafe CF",
+      "sportsdb_team_id": "133731",
+      "sportsdb_team_name": "Getafe",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/eyh2891655594452.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 84,
+      "football_data_team_name": "Málaga CF",
+      "sportsdb_team_id": "133736",
+      "sportsdb_team_name": "Málaga",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/upqyvr1473502952.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 86,
+      "football_data_team_name": "Real Madrid CF",
+      "sportsdb_team_id": "133738",
+      "sportsdb_team_name": "Real Madrid",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/vwvwrw1473502969.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 87,
+      "football_data_team_name": "Rayo Vallecano de Madrid",
+      "sportsdb_team_id": "133728",
+      "sportsdb_team_name": "Rayo Vallecano",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/nzhu941655595465.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 88,
+      "football_data_team_name": "Levante UD",
+      "sportsdb_team_id": "133732",
+      "sportsdb_team_name": "Levante",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/xwtxsx1473503739.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 90,
+      "football_data_team_name": "Real Betis Balompié",
+      "sportsdb_team_id": "133722",
+      "sportsdb_team_name": "Real Betis",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/2oqulv1663245386.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 92,
+      "football_data_team_name": "Real Sociedad de Fútbol",
+      "sportsdb_team_id": "133724",
+      "sportsdb_team_name": "Real Sociedad",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/vptvpr1473502986.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 94,
+      "football_data_team_name": "Villarreal CF",
+      "sportsdb_team_id": "133740",
+      "sportsdb_team_name": "Villarreal",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/vrypqy1473503073.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 95,
+      "football_data_team_name": "Valencia CF",
+      "sportsdb_team_id": "133725",
+      "sportsdb_team_name": "Valencia",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/dm8l6o1655594864.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 263,
+      "football_data_team_name": "Deportivo Alavés",
+      "sportsdb_team_id": "134221",
+      "sportsdb_team_name": "Deportivo Alavés",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/mfn99h1734673842.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 285,
+      "football_data_team_name": "Elche CF",
+      "sportsdb_team_id": "134384",
+      "sportsdb_team_name": "Elche",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/e4vaw51655594332.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 558,
+      "football_data_team_name": "RC Celta de Vigo",
+      "sportsdb_team_id": "133937",
+      "sportsdb_team_name": "Celta Vigo",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/xfjtku1690436219.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 559,
+      "football_data_team_name": "Sevilla FC",
+      "sportsdb_team_id": "133735",
+      "sportsdb_team_name": "Sevilla",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/vpsqqx1473502977.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 560,
+      "football_data_team_name": "RC Deportivo La Coruña",
+      "sportsdb_team_id": "133816",
+      "sportsdb_team_name": "Deportivo de A Coruña",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/62bvwv1783013156.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    },
+    {
+      "football_data_team_id": 5335,
+      "football_data_team_name": "Real Racing Club de Santander",
+      "sportsdb_team_id": "133726",
+      "sportsdb_team_name": "Racing de Santander",
+      "sportsdb_badge_url": "https://r2.thesportsdb.com/images/media/team/badge/97kkiq1536575158.png",
+      "sportsdb_source": "TheSportsDB",
+      "sportsdb_resolution_method": "ID_OVERRIDE",
+      "sportsdb_fetched_at": "2026-08-31T18:12:10.810821+00:00"
+    }
+  ]
+}

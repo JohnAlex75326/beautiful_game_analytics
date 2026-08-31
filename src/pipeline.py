@@ -16,7 +16,11 @@ from src.warehouse.pipeline_log import (
 )
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = (
+    Path(__file__)
+    .resolve()
+    .parents[1]
+)
 
 COMPETITION_CODE = "PD"
 
@@ -32,10 +36,21 @@ def run_command(
     """
 
     print()
-    print("=" * 70)
-    print(f"STAGE: {stage}")
-    print("=" * 70)
-    print("COMMAND:", " ".join(command))
+    print(
+        "=" * 70
+    )
+    print(
+        f"STAGE: {stage}"
+    )
+    print(
+        "=" * 70
+    )
+    print(
+        "COMMAND:",
+        " ".join(
+            command
+        ),
+    )
     print()
 
     update_pipeline_stage(
@@ -51,37 +66,69 @@ def run_command(
 
 
 def run_pipeline() -> None:
-    """Run the complete Beautiful Game Analytics pipeline."""
+    """
+    Run the complete Beautiful Game Analytics
+    production pipeline.
+
+    SportsDB artwork is not refreshed here.
+    It is maintained separately as seasonal
+    reference data.
+    """
 
     load_dotenv(
-        PROJECT_ROOT / ".env"
+        PROJECT_ROOT
+        / ".env"
     )
 
-    run_id = uuid4().hex
-
-    started_at = start_pipeline_run(
-        run_id=run_id,
-        competition_code=COMPETITION_CODE,
+    run_id = (
+        uuid4().hex
     )
 
-    current_stage = "STARTING"
+    started_at = (
+        start_pipeline_run(
+            run_id=run_id,
+            competition_code=(
+                COMPETITION_CODE
+            ),
+        )
+    )
+
+    current_stage = (
+        "STARTING"
+    )
 
     print()
-    print("=" * 70)
-    print("BEAUTIFUL GAME ANALYTICS")
-    print("PIPELINE START")
-    print("=" * 70)
+    print(
+        "=" * 70
+    )
+    print(
+        "BEAUTIFUL GAME ANALYTICS"
+    )
+    print(
+        "PIPELINE START"
+    )
+    print(
+        "=" * 70
+    )
+    print(
+        f"Run ID: "
+        f"{run_id}"
+    )
+    print(
+        f"Competition: "
+        f"{COMPETITION_CODE}"
+    )
 
-    print(f"Run ID: {run_id}")
-    print(f"Competition: {COMPETITION_CODE}")
 
     try:
 
         # --------------------------------------------------
-        # 1. API ingestion
+        # 1. football-data.org API ingestion
         # --------------------------------------------------
 
-        current_stage = "API_INGESTION"
+        current_stage = (
+            "API_INGESTION"
+        )
 
         run_command(
             [
@@ -96,9 +143,15 @@ def run_pipeline() -> None:
 
         # --------------------------------------------------
         # 2. Python transformations
+        #
+        # Includes joining the committed SportsDB
+        # seasonal reference dataset onto dim_team.
+        # No SportsDB API request occurs here.
         # --------------------------------------------------
 
-        current_stage = "TRANSFORMATION"
+        current_stage = (
+            "TRANSFORMATION"
+        )
 
         run_command(
             [
@@ -115,7 +168,9 @@ def run_pipeline() -> None:
         # 3. DuckDB warehouse
         # --------------------------------------------------
 
-        current_stage = "WAREHOUSE_LOAD"
+        current_stage = (
+            "WAREHOUSE_LOAD"
+        )
 
         run_command(
             [
@@ -129,18 +184,26 @@ def run_pipeline() -> None:
 
 
         # --------------------------------------------------
-        # 4. dbt
+        # 4. dbt build
         # --------------------------------------------------
 
-        current_stage = "DBT_BUILD"
+        current_stage = (
+            "DBT_BUILD"
+        )
 
-        dbt_executable = shutil.which("dbt")
+        dbt_executable = (
+            shutil.which(
+                "dbt"
+            )
+        )
 
         if dbt_executable is None:
+
             raise RuntimeError(
                 "dbt executable was not found. "
-                "Ensure the virtual environment is active "
-                "and dbt-duckdb is installed."
+                "Ensure the virtual environment "
+                "is active and dbt-duckdb "
+                "is installed."
             )
 
         run_command(
@@ -163,32 +226,64 @@ def run_pipeline() -> None:
 
         complete_pipeline_run(
             run_id=run_id,
-            started_at=started_at,
+            started_at=(
+                started_at
+            ),
         )
 
         print()
-        print("=" * 70)
-        print("PIPELINE SUCCESS")
-        print("=" * 70)
-        print(f"Run ID: {run_id}")
+        print(
+            "=" * 70
+        )
+        print(
+            "PIPELINE SUCCESS"
+        )
+        print(
+            "=" * 70
+        )
+        print(
+            f"Run ID: "
+            f"{run_id}"
+        )
 
 
     except Exception as exc:
 
         fail_pipeline_run(
             run_id=run_id,
-            started_at=started_at,
-            failed_stage=current_stage,
-            error_message=str(exc),
+            started_at=(
+                started_at
+            ),
+            failed_stage=(
+                current_stage
+            ),
+            error_message=(
+                str(exc)
+            ),
         )
 
         print()
-        print("=" * 70)
-        print("PIPELINE FAILED")
-        print("=" * 70)
-        print(f"Run ID: {run_id}")
-        print(f"Failed Stage: {current_stage}")
-        print(f"Error: {exc}")
+        print(
+            "=" * 70
+        )
+        print(
+            "PIPELINE FAILED"
+        )
+        print(
+            "=" * 70
+        )
+        print(
+            f"Run ID: "
+            f"{run_id}"
+        )
+        print(
+            f"Failed Stage: "
+            f"{current_stage}"
+        )
+        print(
+            f"Error: "
+            f"{exc}"
+        )
 
         raise
 

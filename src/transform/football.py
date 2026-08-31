@@ -6,10 +6,15 @@ from typing import Any
 import pandas as pd
 
 from src.config import (
-    RAW_DATA_DIR,
     PROCESSED_DATA_DIR,
+    RAW_DATA_DIR,
+    REFERENCE_DATA_DIR,
 )
 
+
+# ============================================================
+# Generic helpers
+# ============================================================
 
 def get_latest_snapshot_directory(
     competition_code: str,
@@ -26,9 +31,11 @@ def get_latest_snapshot_directory(
     )
 
     if not competition_dir.exists():
+
         raise FileNotFoundError(
-            f"No raw data directory found for "
-            f"{competition_code}: {competition_dir}"
+            "No raw data directory found for "
+            f"{competition_code}: "
+            f"{competition_dir}"
         )
 
     snapshot_dirs = [
@@ -38,24 +45,432 @@ def get_latest_snapshot_directory(
     ]
 
     if not snapshot_dirs:
+
         raise FileNotFoundError(
-            f"No snapshots found for {competition_code}"
+            f"No snapshots found for "
+            f"{competition_code}"
         )
 
-    return max(snapshot_dirs)
+    return max(
+        snapshot_dirs
+    )
 
 
 def load_json(
     filepath: Path,
 ) -> dict[str, Any]:
-    """Load a JSON file from disk."""
+    """
+    Load a JSON file from disk.
+    """
 
     with filepath.open(
         "r",
         encoding="utf-8",
     ) as file:
-        return json.load(file)
 
+        return json.load(
+            file
+        )
+
+
+def save_parquet(
+    dataframe: pd.DataFrame,
+    filepath: Path,
+) -> None:
+    """
+    Write a DataFrame to Parquet.
+    """
+
+    filepath.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    dataframe.to_parquet(
+        filepath,
+        index=False,
+    )
+
+
+# ============================================================
+# SportsDB reference data
+# ============================================================
+
+def load_sportsdb_reference(
+    competition_code: str,
+) -> tuple[
+    pd.DataFrame,
+    Path,
+]:
+    """
+    Load the manually reviewed SportsDB reference
+    dataset for a competition.
+    """
+
+    reference_path = (
+        REFERENCE_DATA_DIR
+        / "sportsdb"
+        / competition_code
+        / "team_badges.json"
+    )
+
+    if not reference_path.exists():
+
+        raise FileNotFoundError(
+            "SportsDB reference file not found: "
+            f"{reference_path}. "
+            "Run "
+            "'python -m src.ingest.sportsdb_badges' "
+            "and review the mappings before running "
+            "the normal pipeline."
+        )
+
+    payload = load_json(
+        reference_path
+    )
+
+    reference_competition = (
+        payload.get(
+            "competition_code"
+        )
+    )
+
+    if (
+        reference_competition
+        != competition_code
+    ):
+
+        raise ValueError(
+            "SportsDB reference competition mismatch. "
+            f"Expected {competition_code}, "
+            f"received {reference_competition}."
+        )
+
+    records = payload.get(
+        "teams",
+        []
+    )
+
+    reference = pd.DataFrame(
+        records
+    )
+
+    if reference.empty:
+
+        raise ValueError(
+            "SportsDB reference file contains "
+            "zero team records."
+        )
+
+    required_columns = {
+        "football_data_team_id",
+        "football_data_team_name",
+        "sportsdb_team_id",
+        "sportsdb_team_name",
+        "sportsdb_badge_url",
+        "sportsdb_source",
+        "sportsdb_resolution_method",
+        "sportsdb_fetched_at",
+    }
+
+    missing_columns = (
+        required_columns
+        - set(
+            reference.columns
+        )
+    )
+
+    if missing_columns:
+
+        raise ValueError(
+            "SportsDB reference file is missing "
+            "required columns: "
+            f"{sorted(missing_columns)}"
+        )
+
+    reference[
+        "football_data_team_id"
+    ] = (
+        pd.to_numeric(
+            reference[
+                "football_data_team_id"
+            ],
+            errors="raise",
+        )
+        .astype(
+            "Int64"
+        )
+    )
+
+    if (
+        reference[
+            "football_data_team_id"
+        ]
+        .duplicated()
+        .any()
+    ):
+
+        raise ValueError(
+            "SportsDB reference contains duplicate "
+            "football-data.org team IDs."
+        )
+
+    reference[
+        "sportsdb_team_id"
+    ] = (
+        reference[
+            "sportsdb_team_id"
+        ]
+        .astype(
+            "string"
+        )
+    )
+
+    reference[
+        "sportsdb_team_name"
+    ] = (
+        reference[
+            "sportsdb_team_name"
+        ]
+        .astype(
+            "string"
+        )
+    )
+
+    reference[
+        "sportsdb_badge_url"
+    ] = (
+        reference[
+            "sportsdb_badge_url"
+        ]
+        .astype(
+            "string"
+        )
+    )
+
+    reference[
+        "sportsdb_source"
+    ] = (
+        reference[
+            "sportsdb_source"
+        ]
+        .astype(
+            "string"
+        )
+    )
+
+    reference[
+        "sportsdb_resolution_method"
+    ] = (
+        reference[
+            "sportsdb_resolution_method"
+        ]
+        .astype(
+            "string"
+        )
+    )
+
+    reference[
+        "sportsdb_fetched_at"
+    ] = pd.to_datetime(
+        reference[
+            "sportsdb_fetched_at"
+        ],
+        utc=True,
+    )
+
+    return (
+        reference,
+        reference_path,
+    )
+
+
+def enrich_teams_with_reference(
+    dim_team: pd.DataFrame,
+    competition_code: str,
+) -> tuple[
+    pd.DataFrame,
+    Path,
+]:
+    """
+    Merge the manually approved SportsDB artwork
+    reference into the current team dimension.
+
+    The current competition membership and reference
+    membership must match exactly.
+
+    This deliberately causes the normal pipeline to fail
+    at the beginning of a new season if promoted/relegated
+    teams have not yet been reviewed.
+    """
+
+    (
+        reference,
+        reference_path,
+    ) = load_sportsdb_reference(
+        competition_code
+    )
+
+    current_team_ids = set(
+        dim_team[
+            "team_id"
+        ]
+        .dropna()
+        .astype(int)
+        .tolist()
+    )
+
+    reference_team_ids = set(
+        reference[
+            "football_data_team_id"
+        ]
+        .dropna()
+        .astype(int)
+        .tolist()
+    )
+
+    missing_from_reference = (
+        current_team_ids
+        - reference_team_ids
+    )
+
+    obsolete_reference_teams = (
+        reference_team_ids
+        - current_team_ids
+    )
+
+    if (
+        missing_from_reference
+        or obsolete_reference_teams
+    ):
+
+        missing_names = (
+            dim_team.loc[
+                dim_team[
+                    "team_id"
+                ]
+                .isin(
+                    missing_from_reference
+                ),
+                "team_name",
+            ]
+            .tolist()
+        )
+
+        raise ValueError(
+            "SportsDB seasonal reference does not "
+            "match the current competition membership. "
+            f"Missing current teams: {missing_names}. "
+            "Obsolete reference team IDs: "
+            f"{sorted(obsolete_reference_teams)}. "
+            "Refresh and manually review the SportsDB "
+            "reference dataset for the new season."
+        )
+
+    reference_for_merge = (
+        reference[
+            [
+                "football_data_team_id",
+                "sportsdb_team_id",
+                "sportsdb_team_name",
+                "sportsdb_badge_url",
+                "sportsdb_source",
+                "sportsdb_resolution_method",
+                "sportsdb_fetched_at",
+            ]
+        ]
+        .rename(
+            columns={
+                "football_data_team_id":
+                    "team_id",
+            }
+        )
+    )
+
+    enriched = dim_team.merge(
+        reference_for_merge,
+        on="team_id",
+        how="left",
+        validate="one_to_one",
+    )
+
+    required_enrichment_columns = [
+        "sportsdb_team_id",
+        "sportsdb_team_name",
+        "sportsdb_badge_url",
+        "sportsdb_source",
+        "sportsdb_resolution_method",
+        "sportsdb_fetched_at",
+    ]
+
+    missing_enrichment = (
+        enriched[
+            required_enrichment_columns
+        ]
+        .isna()
+        .any(
+            axis=1
+        )
+    )
+
+    if missing_enrichment.any():
+
+        missing_teams = (
+            enriched.loc[
+                missing_enrichment,
+                "team_name",
+            ]
+            .tolist()
+        )
+
+        raise ValueError(
+            "SportsDB reference enrichment is "
+            "incomplete for teams: "
+            f"{missing_teams}"
+        )
+
+    if (
+        enriched[
+            "sportsdb_team_id"
+        ]
+        .duplicated()
+        .any()
+    ):
+
+        raise ValueError(
+            "Multiple competition teams resolve to "
+            "the same SportsDB team ID."
+        )
+
+    invalid_sources = (
+        enriched.loc[
+            enriched[
+                "sportsdb_source"
+            ]
+            != "TheSportsDB",
+            "sportsdb_source",
+        ]
+        .dropna()
+        .unique()
+        .tolist()
+    )
+
+    if invalid_sources:
+
+        raise ValueError(
+            "Unexpected SportsDB reference sources: "
+            f"{invalid_sources}"
+        )
+
+    return (
+        enriched,
+        reference_path,
+    )
+
+
+# ============================================================
+# Team transformation
+# ============================================================
 
 def transform_teams(
     raw_teams: dict[str, Any],
@@ -63,7 +478,7 @@ def transform_teams(
 ) -> pd.DataFrame:
     """
     Flatten football-data.org team records
-    into the dim_team structure.
+    into the base dim_team structure.
     """
 
     loaded_at = datetime.now(
@@ -72,48 +487,139 @@ def transform_teams(
 
     records = []
 
-    for team in raw_teams.get("teams", []):
+    for team in raw_teams.get(
+        "teams",
+        [],
+    ):
 
         records.append(
             {
-                "team_id": team.get("id"),
-                "team_name": team.get("name"),
-                "short_name": team.get("shortName"),
-                "tla": team.get("tla"),
-                "country": (
-                    team.get("area", {})
-                    .get("name")
-                ),
-                "venue_name": team.get("venue"),
-                "founded": team.get("founded"),
-                "club_colors": team.get("clubColors"),
-                "crest_url": team.get("crest"),
-                "competition_code": competition_code,
-                "loaded_at": loaded_at,
+                "team_id":
+                    team.get(
+                        "id"
+                    ),
+
+                "team_name":
+                    team.get(
+                        "name"
+                    ),
+
+                "short_name":
+                    team.get(
+                        "shortName"
+                    ),
+
+                "tla":
+                    team.get(
+                        "tla"
+                    ),
+
+                "country":
+                    (
+                        team.get(
+                            "area",
+                            {},
+                        )
+                        .get(
+                            "name"
+                        )
+                    ),
+
+                "venue_name":
+                    team.get(
+                        "venue"
+                    ),
+
+                "founded":
+                    team.get(
+                        "founded"
+                    ),
+
+                "club_colors":
+                    team.get(
+                        "clubColors"
+                    ),
+
+                # Retained as source metadata.
+                # The public UI will use the separately
+                # reviewed SportsDB badge URL.
+                "crest_url":
+                    team.get(
+                        "crest"
+                    ),
+
+                "competition_code":
+                    competition_code,
+
+                "loaded_at":
+                    loaded_at,
             }
         )
 
-    dataframe = pd.DataFrame(records)
+    dataframe = pd.DataFrame(
+        records
+    )
 
     if dataframe.empty:
+
         raise ValueError(
-            "Team transformation produced zero rows."
+            "Team transformation produced "
+            "zero rows."
         )
 
-    if dataframe["team_id"].duplicated().any():
+    if (
+        dataframe[
+            "team_id"
+        ]
+        .isna()
+        .any()
+    ):
+
+        raise ValueError(
+            "Null team IDs found."
+        )
+
+    dataframe[
+        "team_id"
+    ] = (
+        dataframe[
+            "team_id"
+        ]
+        .astype(
+            "Int64"
+        )
+    )
+
+    if (
+        dataframe[
+            "team_id"
+        ]
+        .duplicated()
+        .any()
+    ):
+
         duplicate_ids = (
             dataframe.loc[
-                dataframe["team_id"].duplicated(),
+                dataframe[
+                    "team_id"
+                ]
+                .duplicated(),
                 "team_id",
             ]
             .tolist()
         )
 
         raise ValueError(
-            f"Duplicate team IDs found: {duplicate_ids}"
+            "Duplicate team IDs found: "
+            f"{duplicate_ids}"
         )
 
     return dataframe
+
+
+# ============================================================
+# Match transformation
+# ============================================================
 
 def transform_matches(
     raw_matches: dict[str, Any],
@@ -140,7 +646,10 @@ def transform_matches(
 
     records = []
 
-    for match in raw_matches.get("matches", []):
+    for match in raw_matches.get(
+        "matches",
+        [],
+    ):
 
         competition = match.get(
             "competition",
@@ -178,99 +687,198 @@ def transform_matches(
 
         records.append(
             {
-                "match_id": match.get("id"),
-                "competition_id": competition.get("id"),
-                "competition_code": competition_code,
-                "season_id": season.get("id"),
-                "matchday": match.get("matchday"),
-                "stage": match.get("stage"),
-                "utc_date": match.get("utcDate"),
-                "status": match.get("status"),
-                "home_team_id": home_team.get("id"),
-                "away_team_id": away_team.get("id"),
-                "home_score": full_time.get("home"),
-                "away_score": full_time.get("away"),
-                "result": result_mapping.get(winner),
-                "source_last_updated": match.get(
-                    "lastUpdated"
-                ),
-                "source_snapshot_date": (
-                    source_snapshot_date
-                ),
-                "loaded_at": loaded_at,
+                "match_id":
+                    match.get(
+                        "id"
+                    ),
+
+                "competition_id":
+                    competition.get(
+                        "id"
+                    ),
+
+                "competition_code":
+                    competition_code,
+
+                "season_id":
+                    season.get(
+                        "id"
+                    ),
+
+                "matchday":
+                    match.get(
+                        "matchday"
+                    ),
+
+                "stage":
+                    match.get(
+                        "stage"
+                    ),
+
+                "utc_date":
+                    match.get(
+                        "utcDate"
+                    ),
+
+                "status":
+                    match.get(
+                        "status"
+                    ),
+
+                "home_team_id":
+                    home_team.get(
+                        "id"
+                    ),
+
+                "away_team_id":
+                    away_team.get(
+                        "id"
+                    ),
+
+                "home_score":
+                    full_time.get(
+                        "home"
+                    ),
+
+                "away_score":
+                    full_time.get(
+                        "away"
+                    ),
+
+                "result":
+                    result_mapping.get(
+                        winner
+                    ),
+
+                "source_last_updated":
+                    match.get(
+                        "lastUpdated"
+                    ),
+
+                "source_snapshot_date":
+                    source_snapshot_date,
+
+                "loaded_at":
+                    loaded_at,
             }
         )
 
-    dataframe = pd.DataFrame(records)
+    dataframe = pd.DataFrame(
+        records
+    )
 
     if dataframe.empty:
+
         raise ValueError(
-            "Match transformation produced zero rows."
+            "Match transformation produced "
+            "zero rows."
         )
 
-    # -----------------------------
-    # Data types
-    # -----------------------------
-
-    dataframe["utc_date"] = pd.to_datetime(
-        dataframe["utc_date"],
+    dataframe[
+        "utc_date"
+    ] = pd.to_datetime(
+        dataframe[
+            "utc_date"
+        ],
         utc=True,
     )
 
-    dataframe["source_last_updated"] = (
-        pd.to_datetime(
-            dataframe["source_last_updated"],
-            utc=True,
+    dataframe[
+        "source_last_updated"
+    ] = pd.to_datetime(
+        dataframe[
+            "source_last_updated"
+        ],
+        utc=True,
+    )
+
+    dataframe[
+        "matchday"
+    ] = (
+        dataframe[
+            "matchday"
+        ]
+        .astype(
+            "Int64"
         )
     )
 
-    dataframe["matchday"] = (
-        dataframe["matchday"]
-        .astype("Int64")
+    dataframe[
+        "home_score"
+    ] = (
+        dataframe[
+            "home_score"
+        ]
+        .astype(
+            "Int64"
+        )
     )
 
-    dataframe["home_score"] = (
-        dataframe["home_score"]
-        .astype("Int64")
+    dataframe[
+        "away_score"
+    ] = (
+        dataframe[
+            "away_score"
+        ]
+        .astype(
+            "Int64"
+        )
     )
 
-    dataframe["away_score"] = (
-        dataframe["away_score"]
-        .astype("Int64")
+    dataframe[
+        "result"
+    ] = (
+        dataframe[
+            "result"
+        ]
+        .astype(
+            "string"
+        )
     )
 
-    dataframe["result"] = (
-        dataframe["result"]
-        .astype("string")
-    )
+    if (
+        dataframe[
+            "match_id"
+        ]
+        .isna()
+        .any()
+    ):
 
-    # -----------------------------
-    # Data-quality assertions
-    # -----------------------------
-
-    if dataframe["match_id"].isna().any():
         raise ValueError(
             "Null match IDs found."
         )
 
-    if dataframe["match_id"].duplicated().any():
+    if (
+        dataframe[
+            "match_id"
+        ]
+        .duplicated()
+        .any()
+    ):
 
         duplicate_ids = (
             dataframe.loc[
-                dataframe["match_id"].duplicated(),
+                dataframe[
+                    "match_id"
+                ]
+                .duplicated(),
                 "match_id",
             ]
             .tolist()
         )
 
         raise ValueError(
-            f"Duplicate match IDs found: "
+            "Duplicate match IDs found: "
             f"{duplicate_ids}"
         )
 
     same_team = (
-        dataframe["home_team_id"]
-        == dataframe["away_team_id"]
+        dataframe[
+            "home_team_id"
+        ]
+        == dataframe[
+            "away_team_id"
+        ]
     )
 
     if same_team.any():
@@ -285,10 +893,16 @@ def transform_matches(
 
         raise ValueError(
             "Home and away team are identical "
-            f"for matches: {invalid_matches}"
+            "for matches: "
+            f"{invalid_matches}"
         )
 
     return dataframe
+
+
+# ============================================================
+# Standings transformation
+# ============================================================
 
 def transform_standings(
     raw_standings: dict[str, Any],
@@ -307,33 +921,42 @@ def transform_standings(
         timezone.utc
     )
 
-    competition = raw_standings.get(
-        "competition",
-        {},
+    competition = (
+        raw_standings.get(
+            "competition",
+            {},
+        )
     )
 
-    season = raw_standings.get(
-        "season",
-        {},
+    season = (
+        raw_standings.get(
+            "season",
+            {},
+        )
     )
 
-    current_matchday = season.get(
-        "currentMatchday"
+    current_matchday = (
+        season.get(
+            "currentMatchday"
+        )
     )
 
     records = []
 
-    for standing_group in raw_standings.get(
-        "standings",
-        [],
+    for standing_group in (
+        raw_standings.get(
+            "standings",
+            [],
+        )
     ):
 
-        standing_type = standing_group.get(
-            "type"
+        standing_type = (
+            standing_group.get(
+                "type"
+            )
         )
 
-        # For the initial league table,
-        # keep only the overall TOTAL table.
+        # Keep only the overall table.
         if standing_type != "TOTAL":
             continue
 
@@ -349,49 +972,82 @@ def transform_standings(
 
             records.append(
                 {
-                    "competition_id": competition.get(
-                        "id"
-                    ),
-                    "competition_code": competition_code,
-                    "season_id": season.get(
-                        "id"
-                    ),
-                    "snapshot_matchday": current_matchday,
-                    "snapshot_date": source_snapshot_date,
-                    "team_id": team.get(
-                        "id"
-                    ),
-                    "position": row.get(
-                        "position"
-                    ),
-                    "played": row.get(
-                        "playedGames"
-                    ),
-                    "form": row.get(
-                        "form"
-                    ),
-                    "won": row.get(
-                        "won"
-                    ),
-                    "drawn": row.get(
-                        "draw"
-                    ),
-                    "lost": row.get(
-                        "lost"
-                    ),
-                    "points": row.get(
-                        "points"
-                    ),
-                    "goals_for": row.get(
-                        "goalsFor"
-                    ),
-                    "goals_against": row.get(
-                        "goalsAgainst"
-                    ),
-                    "goal_difference": row.get(
-                        "goalDifference"
-                    ),
-                    "loaded_at": loaded_at,
+                    "competition_id":
+                        competition.get(
+                            "id"
+                        ),
+
+                    "competition_code":
+                        competition_code,
+
+                    "season_id":
+                        season.get(
+                            "id"
+                        ),
+
+                    "snapshot_matchday":
+                        current_matchday,
+
+                    "snapshot_date":
+                        source_snapshot_date,
+
+                    "team_id":
+                        team.get(
+                            "id"
+                        ),
+
+                    "position":
+                        row.get(
+                            "position"
+                        ),
+
+                    "played":
+                        row.get(
+                            "playedGames"
+                        ),
+
+                    "form":
+                        row.get(
+                            "form"
+                        ),
+
+                    "won":
+                        row.get(
+                            "won"
+                        ),
+
+                    "drawn":
+                        row.get(
+                            "draw"
+                        ),
+
+                    "lost":
+                        row.get(
+                            "lost"
+                        ),
+
+                    "points":
+                        row.get(
+                            "points"
+                        ),
+
+                    "goals_for":
+                        row.get(
+                            "goalsFor"
+                        ),
+
+                    "goals_against":
+                        row.get(
+                            "goalsAgainst"
+                        ),
+
+                    "goal_difference":
+                        row.get(
+                            "goalDifference"
+                        ),
+
+                    "loaded_at":
+                        loaded_at,
                 }
             )
 
@@ -400,8 +1056,10 @@ def transform_standings(
     )
 
     if dataframe.empty:
+
         raise ValueError(
-            "Standings transformation produced zero rows."
+            "Standings transformation produced "
+            "zero rows."
         )
 
     integer_columns = [
@@ -420,25 +1078,45 @@ def transform_standings(
     ]
 
     for column in integer_columns:
-        dataframe[column] = (
-            dataframe[column]
-            .astype("Int64")
+
+        dataframe[
+            column
+        ] = (
+            dataframe[
+                column
+            ]
+            .astype(
+                "Int64"
+            )
         )
 
-    # -----------------------------
-    # Data-quality assertions
-    # -----------------------------
+    if (
+        dataframe[
+            "team_id"
+        ]
+        .isna()
+        .any()
+    ):
 
-    if dataframe["team_id"].isna().any():
         raise ValueError(
-            "Null team IDs found in standings."
+            "Null team IDs found "
+            "in standings."
         )
 
-    if dataframe["team_id"].duplicated().any():
+    if (
+        dataframe[
+            "team_id"
+        ]
+        .duplicated()
+        .any()
+    ):
 
         duplicate_ids = (
             dataframe.loc[
-                dataframe["team_id"].duplicated(),
+                dataframe[
+                    "team_id"
+                ]
+                .duplicated(),
                 "team_id",
             ]
             .tolist()
@@ -446,16 +1124,24 @@ def transform_standings(
 
         raise ValueError(
             "Duplicate teams found in TOTAL "
-            f"standings: {duplicate_ids}"
+            "standings: "
+            f"{duplicate_ids}"
         )
 
-
     if (
-        dataframe["played"]
+        dataframe[
+            "played"
+        ]
         != (
-            dataframe["won"]
-            + dataframe["drawn"]
-            + dataframe["lost"]
+            dataframe[
+                "won"
+            ]
+            + dataframe[
+                "drawn"
+            ]
+            + dataframe[
+                "lost"
+            ]
         )
     ).any():
 
@@ -465,13 +1151,19 @@ def transform_standings(
         )
 
     calculated_goal_difference = (
-        dataframe["goals_for"]
-        - dataframe["goals_against"]
+        dataframe[
+            "goals_for"
+        ]
+        - dataframe[
+            "goals_against"
+        ]
     )
 
     if (
         calculated_goal_difference
-        != dataframe["goal_difference"]
+        != dataframe[
+            "goal_difference"
+        ]
     ).any():
 
         raise ValueError(
@@ -483,6 +1175,10 @@ def transform_standings(
     return dataframe
 
 
+# ============================================================
+# Relationship validation
+# ============================================================
+
 def validate_match_team_relationships(
     fact_match: pd.DataFrame,
     dim_team: pd.DataFrame,
@@ -492,15 +1188,25 @@ def validate_match_team_relationships(
     """
 
     valid_team_ids = set(
-        dim_team["team_id"].dropna()
+        dim_team[
+            "team_id"
+        ]
+        .dropna()
     )
 
-    match_team_ids = set(
-        fact_match["home_team_id"]
-        .dropna()
-    ) | set(
-        fact_match["away_team_id"]
-        .dropna()
+    match_team_ids = (
+        set(
+            fact_match[
+                "home_team_id"
+            ]
+            .dropna()
+        )
+        | set(
+            fact_match[
+                "away_team_id"
+            ]
+            .dropna()
+        )
     )
 
     unknown_team_ids = (
@@ -509,11 +1215,13 @@ def validate_match_team_relationships(
     )
 
     if unknown_team_ids:
+
         raise ValueError(
             "Matches reference team IDs "
             "missing from dim_team: "
             f"{sorted(unknown_team_ids)}"
         )
+
 
 def validate_standing_team_relationships(
     standings: pd.DataFrame,
@@ -525,12 +1233,16 @@ def validate_standing_team_relationships(
     """
 
     valid_team_ids = set(
-        dim_team["team_id"]
+        dim_team[
+            "team_id"
+        ]
         .dropna()
     )
 
     standing_team_ids = set(
-        standings["team_id"]
+        standings[
+            "team_id"
+        ]
         .dropna()
     )
 
@@ -540,42 +1252,37 @@ def validate_standing_team_relationships(
     )
 
     if unknown_team_ids:
+
         raise ValueError(
             "Standings reference team IDs "
             "missing from dim_team: "
             f"{sorted(unknown_team_ids)}"
         )
 
-def save_parquet(
-    dataframe: pd.DataFrame,
-    filepath: Path,
-) -> None:
-    """Write a DataFrame to Parquet."""
 
-    filepath.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    dataframe.to_parquet(
-        filepath,
-        index=False,
-    )
-
+# ============================================================
+# Team processing
+# ============================================================
 
 def process_teams(
     competition_code: str,
 ) -> Path:
     """
-    Transform the latest raw team snapshot
+    Transform the latest raw team snapshot,
+    merge the approved SportsDB reference,
     and write dim_team as Parquet.
     """
 
-    snapshot_dir = get_latest_snapshot_directory(
-        competition_code
+    snapshot_dir = (
+        get_latest_snapshot_directory(
+            competition_code
+        )
     )
 
-    teams_path = snapshot_dir / "teams.json"
+    teams_path = (
+        snapshot_dir
+        / "teams.json"
+    )
 
     raw_teams = load_json(
         teams_path
@@ -583,6 +1290,14 @@ def process_teams(
 
     dim_team = transform_teams(
         raw_teams,
+        competition_code,
+    )
+
+    (
+        dim_team,
+        reference_path,
+    ) = enrich_teams_with_reference(
+        dim_team,
         competition_code,
     )
 
@@ -597,20 +1312,44 @@ def process_teams(
         output_path,
     )
 
-    print()
-    print("Beautiful Game Analytics")
-    print("------------------------")
-    print(
-        f"Source snapshot : {snapshot_dir.name}"
-    )
-    print(
-        f"Teams processed : {len(dim_team)}"
-    )
-    print(
-        f"Output          : {output_path}"
+    badge_count = int(
+        dim_team[
+            "sportsdb_badge_url"
+        ]
+        .notna()
+        .sum()
     )
 
     print()
+    print(
+        "Beautiful Game Analytics"
+    )
+    print(
+        "------------------------"
+    )
+    print(
+        f"Source snapshot : "
+        f"{snapshot_dir.name}"
+    )
+    print(
+        f"Teams processed : "
+        f"{len(dim_team)}"
+    )
+    print(
+        f"Badge coverage  : "
+        f"{badge_count}/{len(dim_team)}"
+    )
+    print(
+        f"Reference       : "
+        f"{reference_path}"
+    )
+    print(
+        f"Output          : "
+        f"{output_path}"
+    )
+
+    print()
+
     print(
         dim_team[
             [
@@ -618,12 +1357,21 @@ def process_teams(
                 "team_name",
                 "short_name",
                 "tla",
-                "venue_name",
+                "sportsdb_team_name",
+                "sportsdb_resolution_method",
             ]
-        ].to_string(index=False)
+        ]
+        .to_string(
+            index=False
+        )
     )
 
     return output_path
+
+
+# ============================================================
+# Match processing
+# ============================================================
 
 def process_matches(
     competition_code: str,
@@ -651,7 +1399,9 @@ def process_matches(
     fact_match = transform_matches(
         raw_matches=raw_matches,
         competition_code=competition_code,
-        source_snapshot_date=snapshot_dir.name,
+        source_snapshot_date=(
+            snapshot_dir.name
+        ),
     )
 
     dim_team_path = (
@@ -661,6 +1411,7 @@ def process_matches(
     )
 
     if not dim_team_path.exists():
+
         raise FileNotFoundError(
             "dim_team.parquet does not exist. "
             "Process teams before matches."
@@ -686,14 +1437,20 @@ def process_matches(
         output_path,
     )
 
-    completed_matches = (
-        fact_match["status"]
-        .eq("FINISHED")
+    completed_matches = int(
+        fact_match[
+            "status"
+        ]
+        .eq(
+            "FINISHED"
+        )
         .sum()
     )
 
-    scheduled_matches = (
-        fact_match["status"]
+    scheduled_matches = int(
+        fact_match[
+            "status"
+        ]
         .isin(
             [
                 "SCHEDULED",
@@ -703,27 +1460,35 @@ def process_matches(
         .sum()
     )
 
-    live_matches = (
-    fact_match["status"]
-    .isin(
-        [
-            "IN_PLAY",
-            "PAUSED",
+    live_matches = int(
+        fact_match[
+            "status"
         ]
-    )
-    .sum()
+        .isin(
+            [
+                "IN_PLAY",
+                "PAUSED",
+            ]
+        )
+        .sum()
     )
 
     other_matches = (
-    len(fact_match)
-    - completed_matches
-    - scheduled_matches
-    - live_matches
+        len(
+            fact_match
+        )
+        - completed_matches
+        - scheduled_matches
+        - live_matches
     )
 
     print()
-    print("Match Transformation")
-    print("--------------------")
+    print(
+        "Match Transformation"
+    )
+    print(
+        "--------------------"
+    )
 
     print(
         f"Source snapshot   : "
@@ -762,6 +1527,11 @@ def process_matches(
 
     return output_path
 
+
+# ============================================================
+# Standings processing
+# ============================================================
+
 def process_standings(
     competition_code: str,
 ) -> Path:
@@ -788,8 +1558,12 @@ def process_standings(
     fact_standing_snapshot = (
         transform_standings(
             raw_standings=raw_standings,
-            competition_code=competition_code,
-            source_snapshot_date=snapshot_dir.name,
+            competition_code=(
+                competition_code
+            ),
+            source_snapshot_date=(
+                snapshot_dir.name
+            ),
         )
     )
 
@@ -800,6 +1574,7 @@ def process_standings(
     )
 
     if not dim_team_path.exists():
+
         raise FileNotFoundError(
             "dim_team.parquet does not exist. "
             "Process teams first."
@@ -834,20 +1609,28 @@ def process_standings(
     )
 
     print()
-    print("Standings Transformation")
-    print("------------------------")
+    print(
+        "Standings Transformation"
+    )
+    print(
+        "------------------------"
+    )
+
     print(
         f"Source snapshot  : "
         f"{snapshot_dir.name}"
     )
+
     print(
         f"Snapshot matchday: "
         f"{matchday}"
     )
+
     print(
         f"Teams processed  : "
         f"{len(fact_standing_snapshot)}"
     )
+
     print(
         f"Output           : "
         f"{output_path}"
@@ -855,13 +1638,22 @@ def process_standings(
 
     return output_path
 
+
+# ============================================================
+# Entry point
+# ============================================================
+
 def main() -> None:
 
     competition_code = "PD"
 
     print()
-    print("Beautiful Game Analytics")
-    print("========================")
+    print(
+        "Beautiful Game Analytics"
+    )
+    print(
+        "========================"
+    )
 
     process_teams(
         competition_code

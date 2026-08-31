@@ -7,7 +7,9 @@ models:
 
     description: >
       Standardized football team records used throughout
-      Beautiful Game Analytics.
+      Beautiful Game Analytics. Club artwork metadata is
+      supplied by the manually reviewed seasonal
+      TheSportsDB reference dataset.
 
     columns:
 
@@ -19,13 +21,61 @@ models:
           - not_null
           - unique
 
+
       - name: team_name
+
         data_tests:
           - not_null
 
+
       - name: competition_code
+
         data_tests:
           - not_null
+
+
+      - name: sportsdb_team_id
+        description: >
+          Manually reviewed TheSportsDB team identifier.
+
+        data_tests:
+          - not_null
+
+
+      - name: sportsdb_badge_url
+        description: >
+          TheSportsDB club badge URL used by the
+          presentation layer.
+
+        data_tests:
+          - not_null
+
+
+      - name: sportsdb_source
+
+        data_tests:
+          - not_null
+
+          - accepted_values:
+              arguments:
+                values:
+                  - TheSportsDB
+
+
+      - name: sportsdb_resolution_method
+        description: >
+          Method used during the seasonal reference
+          refresh to resolve the football-data.org
+          team against TheSportsDB.
+
+        data_tests:
+          - not_null
+
+          - accepted_values:
+              arguments:
+                values:
+                  - ID_OVERRIDE
+                  - NAME_SEARCH
 
 
   - name: stg_matches
@@ -43,28 +93,39 @@ models:
           - not_null
           - unique
 
+
       - name: home_team_id
+
         data_tests:
           - not_null
+
           - relationships:
               arguments:
                 to: ref('stg_teams')
                 field: team_id
+
 
       - name: away_team_id
+
         data_tests:
           - not_null
+
           - relationships:
               arguments:
                 to: ref('stg_teams')
                 field: team_id
 
+
       - name: status
+
         data_tests:
           - not_null
 
+
       - name: competition_code
+
         data_tests:
+
           - accepted_values:
               arguments:
                 values:
@@ -79,21 +140,29 @@ models:
     columns:
 
       - name: team_id
+
         data_tests:
           - not_null
+
           - relationships:
               arguments:
                 to: ref('stg_teams')
                 field: team_id
 
+
       - name: position
+
         data_tests:
           - not_null
+
 
       - name: snapshot_date
+
         data_tests:
           - not_null
 
+
       - name: points
+
         data_tests:
           - not_null
