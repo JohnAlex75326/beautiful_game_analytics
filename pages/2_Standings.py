@@ -153,6 +153,88 @@ st.markdown(
 
 
     /* ----------------------------------------------------
+       League zones
+       ---------------------------------------------------- */
+
+    .bga-zone-legend {
+        display: flex;
+        flex-wrap: wrap;
+
+        align-items: center;
+
+        gap:
+            10px
+            20px;
+
+        margin:
+            10px 0
+            10px 0;
+    }
+
+
+    .bga-zone-item {
+        display: inline-flex;
+
+        align-items: center;
+
+        gap: 7px;
+
+        color: #AAB4C0;
+
+        font-size: 0.74rem;
+        font-weight: 700;
+    }
+
+
+    .bga-zone-dot {
+        width: 9px;
+        height: 9px;
+
+        border-radius: 50%;
+
+        flex-shrink: 0;
+    }
+
+
+    .bga-zone-ucl {
+        background: #5B8CFF;
+
+        box-shadow:
+            0 0 10px
+            rgba(91, 140, 255, 0.28);
+    }
+
+
+    .bga-zone-europe {
+        background: #2EE59D;
+
+        box-shadow:
+            0 0 10px
+            rgba(46, 229, 157, 0.24);
+    }
+
+
+    .bga-zone-relegation {
+        background: #FF8585;
+
+        box-shadow:
+            0 0 10px
+            rgba(255, 133, 133, 0.22);
+    }
+
+
+    .bga-zone-context {
+        color: #66717F;
+
+        font-size: 0.69rem;
+
+        margin:
+            0 0
+            16px 0;
+    }
+
+
+    /* ----------------------------------------------------
        Responsive
        ---------------------------------------------------- */
 
@@ -201,6 +283,55 @@ if standings.empty:
 
 
 # ============================================================
+# Competition presentation configuration
+# ============================================================
+
+LA_LIGA_ZONES = (
+    {
+        "key":
+            "champions_league",
+
+        "label":
+            "Champions League",
+
+        "table_label":
+            "UCL",
+
+        "positions":
+            range(1, 5),
+    },
+
+    {
+        "key":
+            "europe",
+
+        "label":
+            "European Race",
+
+        "table_label":
+            "Europe",
+
+        "positions":
+            range(5, 8),
+    },
+
+    {
+        "key":
+            "relegation",
+
+        "label":
+            "Relegation",
+
+        "table_label":
+            "Relegation",
+
+        "positions":
+            range(18, 21),
+    },
+)
+
+
+# ============================================================
 # Helper functions
 # ============================================================
 
@@ -245,6 +376,67 @@ def render_highlight_card(
         '</div>'
     )
 
+
+def get_league_zone(
+    position: int,
+) -> str:
+    """
+    Return the football context associated
+    with a league position.
+    """
+
+    for zone in LA_LIGA_ZONES:
+
+        if position in zone[
+            "positions"
+        ]:
+
+            return str(
+                zone[
+                    "table_label"
+                ]
+            )
+
+
+    return "—"
+
+
+def style_league_zone(
+    value: str,
+) -> str:
+    """
+    Apply restrained football-zone styling
+    to the standings table.
+    """
+
+    styles = {
+        "UCL": (
+            "background-color: #14213A; "
+            "color: #8FAEFF; "
+            "font-weight: 700;"
+        ),
+
+        "Europe": (
+            "background-color: #123026; "
+            "color: #5DEBB1; "
+            "font-weight: 700;"
+        ),
+
+        "Relegation": (
+            "background-color: #351B20; "
+            "color: #FF9A9A; "
+            "font-weight: 700;"
+        ),
+    }
+
+
+    return styles.get(
+        value,
+        (
+            "color: #66717F; "
+            "font-weight: 500;"
+        ),
+    )
 
 # ============================================================
 # Header
@@ -451,6 +643,48 @@ st.markdown(
 )
 
 
+# ------------------------------------------------------------
+# League zone legend
+# ------------------------------------------------------------
+
+zone_legend_html = (
+    '<div class="bga-zone-legend">'
+
+    '<div class="bga-zone-item">'
+    '<span class="bga-zone-dot bga-zone-ucl"></span>'
+    'Champions League'
+    '</div>'
+
+    '<div class="bga-zone-item">'
+    '<span class="bga-zone-dot bga-zone-europe"></span>'
+    'European Race'
+    '</div>'
+
+    '<div class="bga-zone-item">'
+    '<span class="bga-zone-dot bga-zone-relegation"></span>'
+    'Relegation'
+    '</div>'
+
+    '</div>'
+
+    '<div class="bga-zone-context">'
+    'European-race positions are contextual. '
+    'Final UEFA qualification places may vary '
+    'with domestic cup outcomes and UEFA allocation.'
+    '</div>'
+)
+
+
+st.markdown(
+    zone_legend_html,
+    unsafe_allow_html=True,
+)
+
+
+# ------------------------------------------------------------
+# Build league table
+# ------------------------------------------------------------
+
 table = (
     standings[
         [
@@ -472,6 +706,27 @@ table = (
 )
 
 
+# ------------------------------------------------------------
+# Add football context
+# ------------------------------------------------------------
+
+table[
+    "zone"
+] = (
+    table[
+        "position"
+    ]
+    .astype(int)
+    .map(
+        get_league_zone
+    )
+)
+
+
+# ------------------------------------------------------------
+# Friendly reconciliation status
+# ------------------------------------------------------------
+
 table[
     "is_reconciled"
 ] = (
@@ -490,6 +745,29 @@ table[
 )
 
 
+# ------------------------------------------------------------
+# Put football context before technical data status
+# ------------------------------------------------------------
+
+table = table[
+    [
+        "position",
+        "sportsdb_badge_url",
+        "short_name",
+        "played",
+        "won",
+        "drawn",
+        "lost",
+        "goals_for",
+        "goals_against",
+        "goal_difference",
+        "points",
+        "zone",
+        "is_reconciled",
+    ]
+]
+
+
 table.columns = [
     "Pos",
     "Crest",
@@ -502,9 +780,19 @@ table.columns = [
     "GA",
     "GD",
     "Pts",
+    "Zone",
     "Data",
 ]
 
+styled_table = (
+    table.style
+    .map(
+        style_league_zone,
+        subset=[
+            "Zone",
+        ],
+    )
+)
 
 # --------------------------------------------------
 # Dynamic table height
@@ -522,7 +810,7 @@ table_height = (
 
 
 st.dataframe(
-    table,
+    styled_table,
 
     use_container_width=True,
 
@@ -597,6 +885,18 @@ st.dataframe(
             st.column_config.NumberColumn(
                 "Pts",
                 width="small",
+            ),
+
+        "Zone":
+            st.column_config.TextColumn(
+                "Zone",
+
+                width="medium",
+
+                help=(
+                    "Football context for the "
+                    "club's current league position."
+                ),
             ),
 
         "Data":
