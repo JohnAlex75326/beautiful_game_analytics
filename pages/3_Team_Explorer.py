@@ -113,6 +113,175 @@ st.markdown(
         font-weight: 700;
     }
 
+        /* ----------------------------------------------------
+       Recent form
+       ---------------------------------------------------- */
+
+    .bga-form-section {
+        margin:
+            0 0
+            22px 0;
+    }
+
+
+    .bga-form-heading {
+        display: flex;
+
+        align-items: center;
+        justify-content: space-between;
+
+        gap: 12px;
+
+        margin-bottom: 10px;
+    }
+
+
+    .bga-form-label {
+        color: #8995A4;
+
+        font-size: 0.72rem;
+
+        font-weight: 800;
+
+        text-transform: uppercase;
+
+        letter-spacing: 0.09em;
+    }
+
+
+    .bga-form-caption {
+        color: #66717F;
+
+        font-size: 0.72rem;
+    }
+
+
+    .bga-form-strip {
+        display: grid;
+
+        grid-template-columns:
+            repeat(5, minmax(0, 1fr));
+
+        gap: 10px;
+    }
+
+
+    .bga-form-match {
+        background:
+            linear-gradient(
+                145deg,
+                #111821 0%,
+                #0D131B 100%
+            );
+
+        border: 1px solid #202833;
+
+        border-radius: 14px;
+
+        padding: 13px 12px;
+
+        min-width: 0;
+
+        text-align: center;
+    }
+
+
+    .bga-form-result {
+        width: 34px;
+        height: 34px;
+
+        margin:
+            0 auto
+            9px auto;
+
+        border-radius: 50%;
+
+        display: flex;
+
+        align-items: center;
+        justify-content: center;
+
+        font-size: 0.82rem;
+
+        font-weight: 900;
+    }
+
+
+    .bga-form-result-w {
+        background: rgba(46, 229, 157, 0.14);
+
+        border:
+            1px solid
+            rgba(46, 229, 157, 0.42);
+
+        color: #2EE59D;
+    }
+
+
+    .bga-form-result-d {
+        background: rgba(245, 247, 250, 0.08);
+
+        border:
+            1px solid
+            rgba(245, 247, 250, 0.18);
+
+        color: #D7DEE7;
+    }
+
+
+    .bga-form-result-l {
+        background: rgba(255, 105, 105, 0.12);
+
+        border:
+            1px solid
+            rgba(255, 105, 105, 0.34);
+
+        color: #FF8585;
+    }
+
+
+    .bga-form-score {
+        color: #F5F7FA;
+
+        font-size: 0.90rem;
+
+        font-weight: 800;
+
+        line-height: 1.1;
+    }
+
+
+    .bga-form-opponent {
+        color: #AAB4C0;
+
+        font-size: 0.72rem;
+
+        font-weight: 650;
+
+        margin-top: 5px;
+
+        white-space: nowrap;
+
+        overflow: hidden;
+
+        text-overflow: ellipsis;
+    }
+
+
+    .bga-form-context {
+        color: #66717F;
+
+        font-size: 0.64rem;
+
+        font-weight: 700;
+
+        text-transform: uppercase;
+
+        letter-spacing: 0.05em;
+
+        margin-top: 5px;
+    }
+
 
     /* ----------------------------------------------------
        Responsive club hero
@@ -126,6 +295,11 @@ st.markdown(
             text-align: center;
 
             padding: 20px;
+        }
+
+        .bga-form-strip {
+        grid-template-columns:
+        repeat(3, minmax(0, 1fr));
         }
 
 
@@ -286,6 +460,73 @@ team_matches = matches[
     )
 ].copy()
 
+def selected_team_result(
+    row: pd.Series,
+) -> str:
+    """
+    Return W, D or L from the selected club's perspective.
+    """
+
+    if (
+        row[
+            "home_team_id"
+        ]
+        == team_id
+    ):
+
+        if row[
+            "result"
+        ] == "H":
+
+            return "W"
+
+        if row[
+            "result"
+        ] == "D":
+
+            return "D"
+
+        return "L"
+
+
+    if row[
+        "result"
+    ] == "A":
+
+        return "W"
+
+
+    if row[
+        "result"
+    ] == "D":
+
+        return "D"
+
+
+    return "L"
+
+
+finished_team_matches = (
+    team_matches[
+        team_matches[
+            "match_state"
+        ]
+        == "Finished"
+    ]
+    .copy()
+)
+
+
+if not finished_team_matches.empty:
+
+    finished_team_matches[
+        "Team Result"
+    ] = (
+        finished_team_matches.apply(
+            selected_team_result,
+            axis=1,
+        )
+    )
 
 # ============================================================
 # Club identity hero
@@ -352,6 +593,161 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ============================================================
+# Recent form
+# ============================================================
+
+form_matches = (
+    finished_team_matches
+    .sort_values(
+        "utc_date",
+        ascending=False,
+    )
+    .head(5)
+    .sort_values(
+        "utc_date",
+        ascending=True,
+    )
+    .copy()
+)
+
+
+if not form_matches.empty:
+
+    form_cards = []
+
+
+    for _, match in form_matches.iterrows():
+
+        result = str(
+            match[
+                "Team Result"
+            ]
+        )
+
+
+        if (
+            match[
+                "home_team_id"
+            ]
+            == team_id
+        ):
+
+            opponent = str(
+                match[
+                    "away_team"
+                ]
+            )
+
+            venue = "Home"
+
+            goals_for = int(
+                match[
+                    "home_score"
+                ]
+            )
+
+            goals_against = int(
+                match[
+                    "away_score"
+                ]
+            )
+
+
+        else:
+
+            opponent = str(
+                match[
+                    "home_team"
+                ]
+            )
+
+            venue = "Away"
+
+            goals_for = int(
+                match[
+                    "away_score"
+                ]
+            )
+
+            goals_against = int(
+                match[
+                    "home_score"
+                ]
+            )
+
+
+        result_class = {
+            "W":
+                "bga-form-result-w",
+
+            "D":
+                "bga-form-result-d",
+
+            "L":
+                "bga-form-result-l",
+        }.get(
+            result,
+            "bga-form-result-d",
+        )
+
+
+        form_cards.append(
+            '<div class="bga-form-match">'
+
+            f'<div class="bga-form-result '
+            f'{result_class}">'
+            f'{result}'
+            '</div>'
+
+            f'<div class="bga-form-score">'
+            f'{goals_for}–{goals_against}'
+            '</div>'
+
+            f'<div class="bga-form-opponent">'
+            f'{opponent}'
+            '</div>'
+
+            f'<div class="bga-form-context">'
+            f'{venue} • MD'
+            f'{int(match["matchday"])}'
+            '</div>'
+
+            '</div>'
+        )
+
+
+    form_html = (
+        '<div class="bga-form-section">'
+
+        '<div class="bga-form-heading">'
+
+        '<div class="bga-form-label">'
+        'Recent Form'
+        '</div>'
+
+        '<div class="bga-form-caption">'
+        'Oldest → Latest'
+        '</div>'
+
+        '</div>'
+
+        '<div class="bga-form-strip">'
+
+        + "".join(
+            form_cards
+        )
+
+        + '</div>'
+
+        '</div>'
+    )
+
+
+    st.markdown(
+        form_html,
+        unsafe_allow_html=True,
+    )
 
 # ============================================================
 # Core KPIs
@@ -560,12 +956,6 @@ if derived_row is not None:
     )
 
 
-    st.plotly_chart(
-        home_away_figure,
-        use_container_width=True,
-    )
-
-
 # ============================================================
 # Recent finished matches
 # ============================================================
@@ -575,28 +965,18 @@ st.markdown(
 )
 
 
-finished_team_matches = (
-    team_matches[
-        team_matches[
-            "match_state"
-        ]
-        == "Finished"
-    ]
-    .copy()
-)
-
-
-finished_team_matches = (
+recent_finished_matches = (
     finished_team_matches
     .sort_values(
         "utc_date",
         ascending=False,
     )
     .head(8)
+    .copy()
 )
 
 
-if finished_team_matches.empty:
+if recent_finished_matches.empty:
 
     st.info(
         "No completed matches are available "
@@ -606,68 +986,10 @@ if finished_team_matches.empty:
 
 else:
 
-    def team_result(
-        row: pd.Series,
-    ) -> str:
-        """
-        Determine result from selected team's perspective.
-        """
-
-        if (
-            row[
-                "home_team_id"
-            ]
-            == team_id
-        ):
-
-            if row[
-                "result"
-            ] == "H":
-
-                return "W"
-
-
-            if row[
-                "result"
-            ] == "D":
-
-                return "D"
-
-
-            return "L"
-
-
-        if row[
-            "result"
-        ] == "A":
-
-            return "W"
-
-
-        if row[
-            "result"
-        ] == "D":
-
-            return "D"
-
-
-        return "L"
-
-
-    finished_team_matches[
-        "Team Result"
-    ] = (
-        finished_team_matches.apply(
-            team_result,
-            axis=1,
-        )
-    )
-
-
-    finished_team_matches[
+    recent_finished_matches[
         "Date"
     ] = (
-        finished_team_matches[
+        recent_finished_matches[
             "utc_date"
         ]
         .dt.tz_convert(
@@ -682,7 +1004,7 @@ else:
 
 
     recent_display = (
-        finished_team_matches[
+        recent_finished_matches[
             [
                 "matchday",
                 "Date",
@@ -742,7 +1064,6 @@ else:
                 ),
         },
     )
-
 
 # ============================================================
 # Upcoming fixtures

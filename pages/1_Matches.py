@@ -357,6 +357,105 @@ st.markdown(
         margin: 14px 0 28px 0;
     }
 
+    /* ----------------------------------------------------
+       Matchday navigation
+    ---------------------------------------------------- */
+
+    .bga-matchday-nav-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        gap: 12px;
+
+        margin:
+            8px 0
+            8px 0;
+    }
+
+
+    .bga-matchday-nav-label {
+        color: #8995A4;
+
+        font-size: 0.72rem;
+        font-weight: 800;
+
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+    }
+
+
+    .bga-matchday-nav-context {
+        color: #66717F;
+
+        font-size: 0.72rem;
+    }
+
+
+    .bga-matchday-viewing {
+        color: #8995A4;
+
+        font-size: 0.72rem;
+
+        text-align: center;
+
+        margin:
+            4px 0
+            18px 0;
+    }
+
+
+    .bga-matchday-viewing strong {
+        color: #2EE59D;
+    }
+
+
+    /* Streamlit buttons used by matchday ribbon */
+
+    div[data-testid="stButton"] > button {
+        border-radius: 12px;
+
+        min-height: 42px;
+
+        font-weight: 750;
+
+        border-color: #283340;
+
+        transition:
+            border-color 0.2s ease,
+            transform 0.2s ease;
+    }
+
+
+    div[data-testid="stButton"] > button:hover {
+        border-color: #2EE59D;
+
+        transform: translateY(-1px);
+    }
+
+
+    div[data-testid="stButton"] > button:disabled {
+        opacity: 1;
+
+        background:
+            rgba(
+                46,
+                229,
+                157,
+                0.12
+            );
+
+        border-color:
+            rgba(
+                46,
+                229,
+                157,
+                0.45
+            );
+
+        color: #2EE59D;
+    }
+
 
     /* ----------------------------------------------------
        Tablet
@@ -535,6 +634,105 @@ def determine_default_matchday(
 
     return "All"
 
+def get_matchday_window(
+    matchdays: list[int],
+    selected_matchday: int | str,
+    fallback_matchday: int | str,
+    window_size: int = 7,
+) -> list[int]:
+    """
+    Return a centered window of matchdays for
+    football-style navigation.
+    """
+
+    if not matchdays:
+
+        return []
+
+
+    if (
+        isinstance(
+            selected_matchday,
+            int,
+        )
+        and selected_matchday
+        in matchdays
+    ):
+
+        anchor = selected_matchday
+
+
+    elif (
+        isinstance(
+            fallback_matchday,
+            int,
+        )
+        and fallback_matchday
+        in matchdays
+    ):
+
+        anchor = fallback_matchday
+
+
+    else:
+
+        anchor = matchdays[0]
+
+
+    anchor_index = (
+        matchdays.index(
+            anchor
+        )
+    )
+
+
+    half_window = (
+        window_size // 2
+    )
+
+
+    start_index = max(
+        0,
+        anchor_index
+        - half_window,
+    )
+
+
+    start_index = min(
+        start_index,
+        max(
+            0,
+            len(matchdays)
+            - window_size,
+        ),
+    )
+
+
+    end_index = (
+        start_index
+        + window_size
+    )
+
+
+    return matchdays[
+        start_index:end_index
+    ]
+
+
+def set_selected_matchday(
+    matchday: int | str,
+) -> None:
+    """
+    Update matchday navigation state.
+    """
+
+    st.session_state[
+        "selected_matchday"
+    ] = matchday
+
+    st.session_state[
+        "matchday_select"
+    ] = matchday
 
 def safe_text(
     value: object,
@@ -925,18 +1123,26 @@ default_matchday = (
     )
 )
 
+if (
+    "selected_matchday"
+    not in st.session_state
+):
 
-try:
+    st.session_state[
+        "selected_matchday"
+    ] = default_matchday
 
-    default_matchday_index = (
-        matchday_options.index(
-            default_matchday
-        )
-    )
 
-except ValueError:
+if (
+    st.session_state[
+        "selected_matchday"
+    ]
+    not in matchday_options
+):
 
-    default_matchday_index = 0
+    st.session_state[
+        "selected_matchday"
+    ] = default_matchday
 
 
 teams = sorted(
@@ -960,6 +1166,246 @@ states = [
     "Other",
 ]
 
+# ============================================================
+# Matchday ribbon
+# ============================================================
+
+selected_matchday = (
+    st.session_state[
+        "selected_matchday"
+    ]
+)
+
+
+visible_matchdays = (
+    get_matchday_window(
+        matchdays=matchdays,
+        selected_matchday=selected_matchday,
+        fallback_matchday=default_matchday,
+        window_size=7,
+    )
+)
+
+
+st.markdown(
+    (
+        '<div class="bga-matchday-nav-header">'
+
+        '<div class="bga-matchday-nav-label">'
+        'Matchday'
+        '</div>'
+
+        '<div class="bga-matchday-nav-context">'
+        'Browse the season'
+        '</div>'
+
+        '</div>'
+    ),
+    unsafe_allow_html=True,
+)
+
+
+if visible_matchdays:
+
+    navigation_columns = (
+        st.columns(
+            [
+                0.55,
+                *(
+                    [1] * len(
+                        visible_matchdays
+                    )
+                ),
+                0.55,
+            ]
+        )
+    )
+
+
+    # --------------------------------------------------------
+    # Previous
+    # --------------------------------------------------------
+
+    with navigation_columns[0]:
+
+        if (
+            isinstance(
+                selected_matchday,
+                int,
+            )
+            and selected_matchday
+            in matchdays
+        ):
+
+            selected_index = (
+                matchdays.index(
+                    selected_matchday
+                )
+            )
+
+        else:
+
+            selected_index = (
+                matchdays.index(
+                    default_matchday
+                )
+                if default_matchday
+                in matchdays
+                else 0
+            )
+
+
+        previous_disabled = (
+            selected_index <= 0
+        )
+
+
+        if st.button(
+            "‹",
+            key="matchday_previous",
+            disabled=previous_disabled,
+            use_container_width=True,
+        ):
+
+            set_selected_matchday(
+                matchdays[
+                    selected_index - 1
+                ]
+            )
+
+            st.rerun()
+
+
+    # --------------------------------------------------------
+    # Matchday buttons
+    # --------------------------------------------------------
+
+    for index, matchday in enumerate(
+        visible_matchdays,
+        start=1,
+    ):
+
+        with navigation_columns[index]:
+
+            is_selected = (
+                selected_matchday
+                == matchday
+            )
+
+
+            is_current = (
+                default_matchday
+                == matchday
+            )
+
+
+            label = (
+                f"MD{matchday}"
+            )
+
+
+            if is_current:
+
+                label += " •"
+
+
+            if st.button(
+                label,
+                key=(
+                    f"matchday_button_"
+                    f"{matchday}"
+                ),
+                disabled=is_selected,
+                use_container_width=True,
+            ):
+
+                set_selected_matchday(
+                    matchday
+                )
+
+                st.rerun()
+
+
+    # --------------------------------------------------------
+    # Next
+    # --------------------------------------------------------
+
+    with navigation_columns[-1]:
+
+        next_disabled = (
+            selected_index
+            >= len(matchdays) - 1
+        )
+
+
+        if st.button(
+            "›",
+            key="matchday_next",
+            disabled=next_disabled,
+            use_container_width=True,
+        ):
+
+            set_selected_matchday(
+                matchdays[
+                    selected_index + 1
+                ]
+            )
+
+            st.rerun()
+
+if (
+    selected_matchday
+    == "All"
+):
+
+    viewing_text = (
+        "Viewing all matchdays"
+    )
+
+
+elif (
+    selected_matchday
+    == default_matchday
+):
+
+    viewing_text = (
+        f'Viewing <strong>'
+        f'Matchday {selected_matchday}'
+        f'</strong> • Current'
+    )
+
+
+else:
+
+    viewing_text = (
+        f'Viewing <strong>'
+        f'Matchday {selected_matchday}'
+        f'</strong>'
+    )
+
+
+st.markdown(
+    (
+        '<div class="bga-matchday-viewing">'
+        f'{viewing_text}'
+        '</div>'
+    ),
+    unsafe_allow_html=True,
+)
+
+if (
+    "matchday_select"
+    not in st.session_state
+):
+
+    st.session_state[
+        "matchday_select"
+    ] = (
+        st.session_state[
+            "selected_matchday"
+        ]
+    )
+
 
 # ============================================================
 # Filters
@@ -970,15 +1416,35 @@ filter_col1, filter_col2, filter_col3 = (
 )
 
 
+def sync_matchday_select() -> None:
+    """
+    Synchronize fallback selectbox with ribbon.
+    """
+
+    st.session_state[
+        "selected_matchday"
+    ] = (
+        st.session_state[
+            "matchday_select"
+        ]
+    )
+
+
 with filter_col1:
 
-    selected_matchday = (
-        st.selectbox(
-            "Matchday",
-            options=matchday_options,
-            index=default_matchday_index,
-        )
+    st.selectbox(
+        "Jump to Matchday",
+        options=matchday_options,
+        key="matchday_select",
+        on_change=sync_matchday_select,
     )
+
+
+selected_matchday = (
+    st.session_state[
+        "selected_matchday"
+    ]
+)
 
 
 with filter_col2:
@@ -1002,8 +1468,6 @@ with filter_col3:
             options=states,
         )
     )
-
-
 # ============================================================
 # Apply filters
 # ============================================================
