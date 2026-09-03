@@ -14,6 +14,7 @@ from src.ui.layout import (
 
 from src.warehouse.queries import (
     get_current_standings,
+    get_match_explorer,
     get_reconciliation_summary,
 )
 
@@ -259,16 +260,18 @@ st.markdown(
 @st.cache_data(ttl=300)
 def load_standings_data():
     """
-    Load official standings and reconciliation summary.
+    Load official standings, reconciliation
+    and match explorer data.
     """
 
     return (
         get_current_standings(),
         get_reconciliation_summary(),
+        get_match_explorer(),
     )
 
 
-standings, reconciliation = (
+standings, reconciliation, matches = (
     load_standings_data()
 )
 
@@ -281,6 +284,59 @@ if standings.empty:
 
     st.stop()
 
+# ============================================================
+# Matchday context
+# ============================================================
+
+source_matchday = int(
+    standings.iloc[0][
+        "snapshot_matchday"
+    ]
+)
+
+
+latest_completed_round = None
+
+
+if not matches.empty:
+
+    matchday_status = (
+        matches[
+            matches[
+                "matchday"
+            ]
+            .notna()
+        ]
+        .groupby(
+            "matchday"
+        )[
+            "match_state"
+        ]
+        .apply(
+            lambda states:
+                states.eq(
+                    "Finished"
+                ).all()
+        )
+    )
+
+
+    completed_matchdays = (
+        matchday_status[
+            matchday_status
+        ]
+        .index
+        .tolist()
+    )
+
+
+    if completed_matchdays:
+
+        latest_completed_round = int(
+            max(
+                completed_matchdays
+            )
+        )
 
 # ============================================================
 # Competition presentation configuration
@@ -600,12 +656,21 @@ health_col1, health_col2 = (
 
 
 health_col1.metric(
-    "Current Matchday",
-    int(
-        standings.iloc[0][
-            "snapshot_matchday"
-        ]
+    "Latest Completed Round",
+    (
+        latest_completed_round
+        if latest_completed_round
+        is not None
+        else "—"
     ),
+)
+
+
+health_col1.caption(
+    (
+        "Source season marker: "
+        f"Matchday {source_matchday}"
+    )
 )
 
 
