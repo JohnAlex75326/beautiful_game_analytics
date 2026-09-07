@@ -132,6 +132,12 @@ def render_sidebar() -> None:
     )
 
     st.sidebar.page_link(
+    "pages/5_Season_View.py",
+    label="Season View",
+    icon="🗓️",
+)
+
+    st.sidebar.page_link(
         "pages/4_Data_Health.py",
         label="Data Health",
         icon="🩺",
