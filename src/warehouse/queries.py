@@ -62,6 +62,241 @@ def get_current_standings() -> pd.DataFrame:
         """
     )
 
+def get_matchday_position_history() -> pd.DataFrame:
+    """
+    Reconstruct league position after each fully
+    completed matchday from FINISHED match results.
+
+    Ranking is analytical:
+        points -> goal difference -> goals scored.
+
+    Exact official tie-break ordering can differ
+    when teams remain level on these measures.
+    """
+
+    return query_dataframe(
+        """
+        WITH current_context AS (
+
+            SELECT DISTINCT
+                competition_code,
+                season_id
+
+            FROM analytics.mart_current_standings
+
+        ),
+
+
+        matchday_status AS (
+
+            SELECT
+                m.matchday,
+
+                COUNT(*) AS total_matches,
+
+                SUM(
+                    CASE
+                        WHEN m.status = 'FINISHED'
+                            THEN 1
+                        ELSE 0
+                    END
+                ) AS finished_matches
+
+            FROM analytics.stg_matches m
+
+            INNER JOIN current_context c
+                ON m.competition_code = c.competition_code
+                AND m.season_id = c.season_id
+
+            WHERE m.matchday IS NOT NULL
+
+            GROUP BY
+                m.matchday
+
+        ),
+
+
+        completed_matchdays AS (
+
+            SELECT
+                current_md.matchday
+
+            FROM matchday_status current_md
+
+            WHERE
+                current_md.total_matches
+                = current_md.finished_matches
+
+                -- Only expose contiguous completed rounds.
+                -- If MD4 is incomplete, MD5 should not appear
+                -- as a completed league-table checkpoint.
+                AND NOT EXISTS (
+
+                    SELECT 1
+
+                    FROM matchday_status earlier_md
+
+                    WHERE
+                        earlier_md.matchday
+                        < current_md.matchday
+
+                        AND (
+                            earlier_md.total_matches
+                            != earlier_md.finished_matches
+                        )
+
+                )
+
+        ),
+
+
+        teams AS (
+
+            SELECT
+                team_id,
+                short_name,
+                tla,
+                sportsdb_badge_url
+
+            FROM analytics.mart_current_standings
+
+        ),
+
+
+        results AS (
+
+            SELECT
+                r.team_id,
+                r.match_id,
+                r.matchday,
+
+                r.points_earned,
+                r.goals_for,
+                r.goals_against
+
+            FROM analytics.int_team_match_results r
+
+            INNER JOIN current_context c
+                ON r.competition_code = c.competition_code
+                AND r.season_id = c.season_id
+
+        ),
+
+
+        cumulative AS (
+
+            SELECT
+                md.matchday,
+
+                t.team_id,
+                t.short_name,
+                t.tla,
+                t.sportsdb_badge_url,
+
+                COUNT(
+                    r.match_id
+                ) AS played,
+
+                COALESCE(
+                    SUM(
+                        r.points_earned
+                    ),
+                    0
+                ) AS points,
+
+                COALESCE(
+                    SUM(
+                        r.goals_for
+                    ),
+                    0
+                ) AS goals_for,
+
+                COALESCE(
+                    SUM(
+                        r.goals_against
+                    ),
+                    0
+                ) AS goals_against
+
+            FROM completed_matchdays md
+
+            CROSS JOIN teams t
+
+            LEFT JOIN results r
+                ON t.team_id = r.team_id
+                AND r.matchday <= md.matchday
+
+            GROUP BY
+                md.matchday,
+                t.team_id,
+                t.short_name,
+                t.tla,
+                t.sportsdb_badge_url
+
+        ),
+
+
+        with_goal_difference AS (
+
+            SELECT
+                *,
+
+                goals_for
+                - goals_against
+                    AS goal_difference
+
+            FROM cumulative
+
+        ),
+
+
+        ranked AS (
+
+            SELECT
+                *,
+
+                RANK() OVER (
+
+                    PARTITION BY
+                        matchday
+
+                    ORDER BY
+                        points DESC,
+                        goal_difference DESC,
+                        goals_for DESC
+
+                ) AS derived_position
+
+            FROM with_goal_difference
+
+        )
+
+
+        SELECT
+            matchday,
+
+            team_id,
+            short_name,
+            tla,
+            sportsdb_badge_url,
+
+            derived_position,
+
+            played,
+            points,
+
+            goals_for,
+            goals_against,
+            goal_difference
+
+        FROM ranked
+
+        ORDER BY
+            matchday,
+            derived_position,
+            short_name
+        """
+    )
 
 def get_team_performance() -> pd.DataFrame:
     """

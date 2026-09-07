@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from html import escape
-
+import pandas as pd
 import plotly.express as px
 import streamlit as st
 
@@ -16,6 +16,7 @@ from src.warehouse.queries import (
     get_current_standings,
     get_match_explorer,
     get_reconciliation_summary,
+    get_matchday_position_history,
 )
 
 
@@ -268,13 +269,15 @@ def load_standings_data():
         get_current_standings(),
         get_reconciliation_summary(),
         get_match_explorer(),
+        get_matchday_position_history(),
     )
 
-
-standings, reconciliation, matches = (
-    load_standings_data()
-)
-
+(
+    standings,
+    reconciliation,
+    matches,
+    position_history,
+) = load_standings_data()
 
 if standings.empty:
 
@@ -989,6 +992,382 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ============================================================
+# League position movement
+# ============================================================
+
+st.markdown(
+    "### League Position Movement"
+)
+
+
+st.caption(
+    (
+        "Matchday-by-matchday league progression reconstructed "
+        "from FINISHED results. Positions use points, goal "
+        "difference and goals scored; exact official tie-break "
+        "ordering may differ when clubs remain level."
+    )
+)
+
+
+if position_history.empty:
+
+    st.info(
+        "No fully completed matchdays are "
+        "currently available."
+    )
+
+
+else:
+
+    # --------------------------------------------------------
+    # Race selector
+    # --------------------------------------------------------
+
+    race_view = st.radio(
+        "Race View",
+
+        options=[
+            "Title Race",
+            "European Race",
+            "Relegation Battle",
+            "Custom Clubs",
+        ],
+
+        horizontal=True,
+
+        key="position_race_view",
+    )
+
+
+    # --------------------------------------------------------
+    # Preset club groups based on current official table
+    # --------------------------------------------------------
+
+    if race_view == "Title Race":
+
+        selected_clubs = (
+            standings.loc[
+                standings[
+                    "position"
+                ]
+                .between(
+                    1,
+                    4,
+                ),
+                "short_name",
+            ]
+            .tolist()
+        )
+
+
+    elif race_view == "European Race":
+
+        selected_clubs = (
+            standings.loc[
+                standings[
+                    "position"
+                ]
+                .between(
+                    4,
+                    8,
+                ),
+                "short_name",
+            ]
+            .tolist()
+        )
+
+
+    elif race_view == "Relegation Battle":
+
+        selected_clubs = (
+            standings.loc[
+                standings[
+                    "position"
+                ]
+                .between(
+                    16,
+                    20,
+                ),
+                "short_name",
+            ]
+            .tolist()
+        )
+
+
+    else:
+
+        club_options = (
+            standings[
+                "short_name"
+            ]
+            .dropna()
+            .sort_values()
+            .tolist()
+        )
+
+
+        default_custom_clubs = (
+            [
+                "Real Madrid",
+            ]
+            if "Real Madrid"
+            in club_options
+
+            else club_options[:1]
+        )
+
+
+        selected_clubs = (
+            st.multiselect(
+                "Select Clubs",
+
+                options=club_options,
+
+                default=(
+                    default_custom_clubs
+                ),
+
+                key=(
+                    "position_custom_clubs"
+                ),
+            )
+        )
+
+
+    # --------------------------------------------------------
+    # Selected race history
+    # --------------------------------------------------------
+
+    movement = (
+        position_history[
+            position_history[
+                "short_name"
+            ]
+            .isin(
+                selected_clubs
+            )
+        ]
+        .copy()
+    )
+
+
+    movement = (
+        movement
+        .sort_values(
+            [
+                "matchday",
+                "derived_position",
+            ]
+        )
+    )
+
+
+    # --------------------------------------------------------
+    # Context metrics
+    # --------------------------------------------------------
+
+    completed_rounds = (
+        position_history[
+            "matchday"
+        ]
+        .drop_duplicates()
+        .sort_values()
+        .tolist()
+    )
+
+
+    context_col1, context_col2 = (
+        st.columns(2)
+    )
+
+
+    context_col1.metric(
+        "Completed Rounds",
+        len(
+            completed_rounds
+        ),
+    )
+
+
+    context_col2.metric(
+        "Latest Derived Round",
+        int(
+            max(
+                completed_rounds
+            )
+        ),
+    )
+
+
+    # --------------------------------------------------------
+    # Movement chart
+    # --------------------------------------------------------
+
+    if not selected_clubs:
+
+        st.info(
+            "Select at least one club "
+            "to view position movement."
+        )
+
+
+    elif movement.empty:
+
+        st.info(
+            "No matchday history is available "
+            "for the selected clubs."
+        )
+
+
+    else:
+
+        minimum_position = int(
+            movement[
+                "derived_position"
+            ]
+            .min()
+        )
+
+
+        maximum_position = int(
+            movement[
+                "derived_position"
+            ]
+            .max()
+        )
+
+
+        chart_top = max(
+            1,
+            minimum_position - 1,
+        )
+
+
+        chart_bottom = min(
+            len(
+                standings
+            ),
+            maximum_position + 1,
+        )
+
+
+        position_figure = px.line(
+            movement,
+
+            x="matchday",
+
+            y="derived_position",
+
+            color="short_name",
+
+            markers=True,
+
+            custom_data=[
+                "played",
+                "points",
+                "goals_for",
+                "goals_against",
+                "goal_difference",
+            ],
+
+            labels={
+                "matchday":
+                    "Matchday",
+
+                "derived_position":
+                    "League Position",
+
+                "short_name":
+                    "Club",
+            },
+        )
+
+
+        position_figure.update_traces(
+            line={
+                "width":
+                    3,
+            },
+
+            marker={
+                "size":
+                    9,
+            },
+
+            hovertemplate=(
+                "<b>%{fullData.name}</b>"
+                "<br>Matchday %{x}"
+                "<br>Position: %{y}"
+                "<br>Played: %{customdata[0]}"
+                "<br>Points: %{customdata[1]}"
+                "<br>Goals: %{customdata[2]}–%{customdata[3]}"
+                "<br>GD: %{customdata[4]}"
+                "<extra></extra>"
+            ),
+        )
+
+
+        position_figure.update_xaxes(
+            dtick=1,
+
+            tickprefix="MD ",
+
+            title="Matchday",
+        )
+
+
+        position_figure.update_yaxes(
+            dtick=1,
+
+            range=[
+                chart_bottom + 0.5,
+                chart_top - 0.5,
+            ],
+
+            title="League Position",
+        )
+
+
+        position_figure.update_layout(
+            height=540,
+
+            legend_title_text="",
+
+            hovermode="x",
+
+            margin={
+                "l":
+                    10,
+
+                "r":
+                    20,
+
+                "t":
+                    20,
+
+                "b":
+                    20,
+            },
+        )
+
+
+        st.plotly_chart(
+            position_figure,
+
+            use_container_width=True,
+        )
+
+
+        st.caption(
+            (
+                "Derived standings are intended to show "
+                "movement between completed rounds. The "
+                "official Current League Table above remains "
+                "the authoritative standings view."
+            )
+        )
 
 # ============================================================
 # Points race

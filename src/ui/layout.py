@@ -89,20 +89,82 @@ def apply_branding() -> None:
 
 
 def render_sidebar() -> None:
-    """Render common product context."""
+    """Render common product navigation and context."""
 
-    st.sidebar.markdown("## ⚽ Beautiful Game Analytics")
-    st.sidebar.caption("Football intelligence from public data")
+    st.sidebar.markdown(
+        "## ⚽ Beautiful Game Analytics"
+    )
+
+    st.sidebar.caption(
+        "Football intelligence from public data"
+    )
+
+
+    st.sidebar.divider()
+
+
+    # ========================================================
+    # Product navigation
+    # ========================================================
+
+    st.sidebar.page_link(
+        "app.py",
+        label="Overview",
+        icon="🏠",
+    )
+
+    st.sidebar.page_link(
+        "pages/1_Matches.py",
+        label="Matches",
+        icon="⚽",
+    )
+
+    st.sidebar.page_link(
+        "pages/2_Standings.py",
+        label="Standings",
+        icon="📊",
+    )
+
+    st.sidebar.page_link(
+        "pages/3_Team_Explorer.py",
+        label="Team Explorer",
+        icon="🛡️",
+    )
+
+    st.sidebar.page_link(
+        "pages/4_Data_Health.py",
+        label="Data Health",
+        icon="🩺",
+    )
+
 
     st.sidebar.divider()
 
-    st.sidebar.markdown("**Competition**")
-    st.sidebar.write("La Liga")
 
-    st.sidebar.markdown("**Season**")
-    st.sidebar.write("2026/27")
+    # ========================================================
+    # Competition context
+    # ========================================================
+
+    st.sidebar.markdown(
+        "**Competition**"
+    )
+
+    st.sidebar.write(
+        "La Liga"
+    )
+
+
+    st.sidebar.markdown(
+        "**Season**"
+    )
+
+    st.sidebar.write(
+        "2026/27"
+    )
+
 
     st.sidebar.divider()
+
 
     st.sidebar.caption(
         "Python • DuckDB • dbt • Streamlit"

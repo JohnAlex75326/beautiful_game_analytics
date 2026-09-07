@@ -29,7 +29,7 @@ from src.warehouse.queries import (
 # ============================================================
 
 st.set_page_config(
-    page_title="Beautiful Game Analytics",
+    page_title="Overview | Beautiful Game Analytics",
     page_icon="⚽",
     layout="wide",
 )
@@ -118,6 +118,73 @@ st.markdown(
         font-weight: 700;
 
         margin-top: 6px;
+    }
+
+        /* ----------------------------------------------------
+       About project
+       ---------------------------------------------------- */
+
+    .bga-about-card {
+        background:
+            linear-gradient(
+                145deg,
+                #111821 0%,
+                #0D131B 100%
+            );
+
+        border: 1px solid #202833;
+        border-radius: 18px;
+
+        padding:
+            26px
+            28px;
+
+        margin:
+            10px 0
+            24px 0;
+    }
+
+
+    .bga-about-kicker {
+        color: #2EE59D;
+
+        font-size: 0.70rem;
+        font-weight: 800;
+
+        text-transform: uppercase;
+        letter-spacing: 0.10em;
+
+        margin-bottom: 14px;
+    }
+
+
+    .bga-about-body {
+        color: #C2CBD5;
+
+        font-size: 0.92rem;
+
+        line-height: 1.75;
+
+        max-width: 1000px;
+    }
+
+
+    .bga-about-body p {
+        margin:
+            0 0
+            15px 0;
+    }
+
+
+    .bga-about-body p:last-child {
+        margin-bottom: 0;
+    }
+
+
+    .bga-about-emphasis {
+        color: #F5F7FA;
+
+        font-weight: 700;
     }
 
 
@@ -1072,6 +1139,99 @@ st.plotly_chart(
     use_container_width=True,
 )
 
+# ============================================================
+# About this project
+# ============================================================
+
+st.markdown(
+    (
+        '<div class="bga-section-title">'
+        'About This Project'
+        '</div>'
+    ),
+    unsafe_allow_html=True,
+)
+
+
+about_html = (
+    '<div class="bga-about-card">'
+
+    '<div class="bga-about-kicker">'
+    'Why I Built Beautiful Game Analytics'
+    '</div>'
+
+    '<div class="bga-about-body">'
+
+    '<p>'
+    'I built Beautiful Game Analytics as a way to bring '
+    'together two things I care about: football and building '
+    'reliable data products. Football has been a long-standing '
+    'interest of mine, and this project gives me a place to '
+    'explore the game through the engineering craft I work '
+    'with professionally.'
+    '</p>'
+
+    '<p>'
+    'The goal was '
+    '<span class="bga-about-emphasis">'
+    'not simply to build another scores dashboard.'
+    '</span> '
+    'I wanted to treat public football data like a real data '
+    'product: ingest it reliably, preserve the source truth, '
+    'model it in a warehouse, test it, reconcile competing '
+    'views of the data, document the transformations, and then '
+    'present the result in a way that actually feels native '
+    'to football.'
+    '</p>'
+
+    '<p>'
+    'It is also a portfolio project, but I want the engineering '
+    'to be useful rather than decorative. If the standings and '
+    'match feed disagree, the product should make that visible. '
+    'If a metric is derived, it should be traceable. The '
+    'architecture underneath the dashboard matters just as '
+    'much to me as the visual product people interact with.'
+    '</p>'
+
+    '<p>'
+    'As Beautiful Game Analytics evolves, my intention is to '
+    'expand into more competitions, richer football-native '
+    'analysis and selective AI features while keeping the same '
+    'discipline around provenance, reliability and data '
+    'quality. '
+    '<span class="bga-about-emphasis">'
+    'The ambition is simple: build a football product first, '
+    'with production-minded data engineering underneath it.'
+    '</span>'
+    '</p>'
+
+        '<p>'
+    'The original spark for this project came from '
+    '<a '
+    'href="https://github.com/peter115342/soccer-tracker-DE-project" '
+    'target="_blank" '
+    'style="color: #2EE59D; font-weight: 700; '
+    'text-decoration: none;">'
+    'Peter&apos;s Football Statistics Tracker'
+    '</a>, '
+    'an end-to-end football data engineering project that '
+    'showed me how the sport could be used as the foundation '
+    'for a serious engineering portfolio project. Beautiful '
+    'Game Analytics grew from that inspiration into my own '
+    'take on the idea, with a different architecture, '
+    'data model, analytical layer and product direction.'
+    '</p>'
+
+    '</div>'
+
+    '</div>'
+)
+
+
+st.markdown(
+    about_html,
+    unsafe_allow_html=True,
+)
 
 # ============================================================
 # Footer
