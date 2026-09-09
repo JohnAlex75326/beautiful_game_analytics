@@ -179,22 +179,6 @@ jobs:
           ls -lh dbt-docs-site/ 2>/dev/null || true
 
 
-      # ------------------------------------------------------
-      # Pipeline artifact
-      # ------------------------------------------------------
-
-      - name: Upload pipeline output for inspection
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: beautiful-game-pipeline-output
-          path: |
-            data/raw/
-            data/processed/
-            data/*.duckdb
-          retention-days: 7
-          if-no-files-found: warn
-
 
   # ==========================================================
   # GITHUB PAGES DEPLOYMENT
